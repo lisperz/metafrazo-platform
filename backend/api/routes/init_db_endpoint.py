@@ -4,7 +4,7 @@ Database initialization endpoint - ONLY for initial setup
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from backend.models.database import async_session_maker
-from backend.auth.password import get_password_hash
+from backend.auth.jwt_handler import JWTHandler
 
 router = APIRouter()
 
@@ -33,14 +33,14 @@ async def initialize_database():
             """))
 
             # Create demo user
-            password_hash = get_password_hash("demo123")
+            password_hash = JWTHandler.hash_password("demo123")
             await session.execute(text("""
                 INSERT INTO users (email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
                 VALUES ('demo@example.com', :password_hash, 'Demo', 'User', 1, 100, true)
             """), {"password_hash": password_hash})
 
             # Create boss user
-            boss_password_hash = get_password_hash("boss123")
+            boss_password_hash = JWTHandler.hash_password("boss123")
             await session.execute(text("""
                 INSERT INTO users (email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
                 VALUES ('boss@example.com', :password_hash, 'Boss', 'User', 2, 1000, true)
