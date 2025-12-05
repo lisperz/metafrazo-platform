@@ -76,13 +76,13 @@ export const UI_CONFIG = {
  * Uses dynamic base URL to support both local development and production
  *
  * Backend route mappings:
- * - SYNC_PROCESS: /api/v1/video-editors/pro-sync-process (lip-sync with audio)
+ * - SYNC_PROCESS: /api/v1/video-editors/sync-process (simple lip-sync with single audio)
  * - DIRECT_PROCESS: /api/v1/jobs/direct-process (text removal only, GhostCut)
  */
 export const getApiEndpoints = () => {
   const baseUrl = getApiBaseUrl();
   return {
-    SYNC_PROCESS: `${baseUrl}/video-editors/pro-sync-process`,
+    SYNC_PROCESS: `${baseUrl}/video-editors/sync-process`,
     DIRECT_PROCESS: `${baseUrl}/jobs/direct-process`,
     AUTH_ME: `${baseUrl}/auth/me`,
     AUTH_LOGIN: `${baseUrl}/auth/login`,
