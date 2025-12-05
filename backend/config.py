@@ -33,10 +33,15 @@ class Settings(BaseSettings):
     
     # Redis settings
     redis_url: str = config("REDIS_URL", default="redis://localhost:6379/0")
-    
-    # Celery settings
-    celery_broker_url: str = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
-    celery_result_backend: str = config("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+
+    # Celery settings - fall back to REDIS_URL if not explicitly set
+    @property
+    def celery_broker_url(self) -> str:
+        return config("CELERY_BROKER_URL", default=self.redis_url)
+
+    @property
+    def celery_result_backend(self) -> str:
+        return config("CELERY_RESULT_BACKEND", default=self.redis_url)
     
     # AWS settings
     aws_access_key_id: str = config("AWS_ACCESS_KEY_ID", default="")

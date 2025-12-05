@@ -26,7 +26,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
-COPY video_processing.py .
 
 # Create necessary directories
 RUN mkdir -p /app/uploads /app/temp /app/logs \
