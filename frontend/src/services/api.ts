@@ -12,6 +12,9 @@ const API_BASE_URL = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API
     ? 'https://backend-production-268a.up.railway.app/api/v1'
     : '/api/v1';
 
+// Export for use in other parts of the app (e.g., Pro Video Editor)
+export const getApiBaseUrl = (): string => API_BASE_URL;
+
 // Debug logging for production troubleshooting
 console.log('[API] Configuration:', {
   hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',

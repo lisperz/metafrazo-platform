@@ -6,6 +6,7 @@
  */
 
 import { EffectType } from '../types';
+import { getApiBaseUrl } from '../../../../services/api';
 
 /**
  * Color mapping for different effect types
@@ -71,12 +72,23 @@ export const TIMELINE_CONSTANTS = {
 
 /**
  * API endpoint constants
+ * Uses dynamic base URL to support both local development and production
  */
+export const getApiEndpoints = () => {
+  const baseUrl = getApiBaseUrl();
+  return {
+    PRO_SYNC_PROCESS: `${baseUrl}/video-editors/pro-sync-process`,
+    AUTH_ME: `${baseUrl}/auth/me`,
+    AUTH_LOGIN: `${baseUrl}/auth/login`,
+  };
+};
+
+// For backward compatibility - will be evaluated at runtime
 export const API_ENDPOINTS = {
-  PRO_SYNC_PROCESS: '/api/v1/video-editors/pro-sync-process',
-  AUTH_ME: '/api/v1/auth/me',
-  AUTH_LOGIN: '/api/v1/auth/login',
-} as const;
+  get PRO_SYNC_PROCESS() { return getApiEndpoints().PRO_SYNC_PROCESS; },
+  get AUTH_ME() { return getApiEndpoints().AUTH_ME; },
+  get AUTH_LOGIN() { return getApiEndpoints().AUTH_LOGIN; },
+};
 
 /**
  * Demo account credentials for auto-login
