@@ -16,9 +16,6 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Install envsubst for environment variable substitution
-RUN apk add --no-cache gettext
-
 # Copy custom nginx config template
 COPY nginx.railway.conf /etc/nginx/nginx.conf.template
 
@@ -36,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-80}/health || exit 1
 
 # Start nginx with PORT substitution
-CMD envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'
+CMD sh -c "sed 's/PORT_PLACEHOLDER/'${PORT:-80}'/g' /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'"
