@@ -140,6 +140,11 @@ def _create_user_session(
 
 def _build_user_response(user: User) -> UserResponse:
     """Build UserResponse from User model"""
+    # Handle case where subscription_tier might not be loaded
+    tier_name = "free"
+    if user.subscription_tier:
+        tier_name = user.subscription_tier.name
+
     return UserResponse(
         id=str(user.id),
         email=user.email,
@@ -147,7 +152,7 @@ def _build_user_response(user: User) -> UserResponse:
         last_name=user.last_name,
         company=user.company,
         email_verified=user.email_verified,
-        subscription_tier=user.subscription_tier.name,
+        subscription_tier=tier_name,
         credits_balance=user.credits_balance,
         created_at=user.created_at
     )
