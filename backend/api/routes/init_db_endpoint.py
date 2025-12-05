@@ -30,6 +30,16 @@ def initialize_database(db: Session = Depends(get_database)):
                 ('enterprise', 'Enterprise Plan', 'For large organizations', 99.99, 999.99, 5000, 7200, 2000, 10, '["basic_processing", "priority_support", "api_access", "custom_models", "dedicated_support"]')
             """))
 
+        # Get tier IDs dynamically
+        free_tier_result = db.execute(text("SELECT id FROM subscription_tiers WHERE name = 'free'")).first()
+        pro_tier_result = db.execute(text("SELECT id FROM subscription_tiers WHERE name = 'pro'")).first()
+
+        if not free_tier_result or not pro_tier_result:
+            raise Exception("Subscription tiers not found. Database may be corrupted.")
+
+        free_tier_id = free_tier_result[0]
+        pro_tier_id = pro_tier_result[0]
+
         # Check and create demo user (password: demo123)
         demo_exists = db.execute(text("SELECT COUNT(*) FROM users WHERE email = 'demo@example.com'")).scalar()
         users_created = 0
@@ -38,8 +48,8 @@ def initialize_database(db: Session = Depends(get_database)):
             demo_hash = "$2b$12$Jmmu8lkVOYy1byb1lfrgd.M7rHRxmLtfefa/oKiXeeOdwa5.rfvwm"
             db.execute(text("""
                 INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-                VALUES (gen_random_uuid(), 'demo@example.com', :password_hash, 'Demo', 'User', 1, 100, true)
-            """), {"password_hash": demo_hash})
+                VALUES (gen_random_uuid(), 'demo@example.com', :password_hash, 'Demo', 'User', :tier_id, 100, true)
+            """), {"password_hash": demo_hash, "tier_id": free_tier_id})
             users_created += 1
 
         # Check and create boss user (password: boss123)
@@ -49,8 +59,8 @@ def initialize_database(db: Session = Depends(get_database)):
             boss_hash = "$2b$12$ue6QnVYW3pEcVZ.FqbF7W.VGqE8n2vKZqaALy6uGhXwp5yPzL7yKO"
             db.execute(text("""
                 INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-                VALUES (gen_random_uuid(), 'boss@example.com', :password_hash, 'Boss', 'User', 2, 1000, true)
-            """), {"password_hash": boss_hash})
+                VALUES (gen_random_uuid(), 'boss@example.com', :password_hash, 'Boss', 'User', :tier_id, 1000, true)
+            """), {"password_hash": boss_hash, "tier_id": pro_tier_id})
             users_created += 1
 
         db.commit()
