@@ -104,7 +104,7 @@ async def handle_user_login(
 
     # Update login information
     user.last_login_at = datetime.utcnow()
-    user.login_count += 1
+    user.login_count = (user.login_count or 0) + 1
 
     # Create session and tokens
     access_token, refresh_token = _create_user_session(
