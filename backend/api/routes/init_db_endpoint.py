@@ -36,15 +36,15 @@ def initialize_database(db: Session = Depends(get_database)):
         # Pre-computed bcrypt hash to avoid runtime hashing issues
         demo_hash = "$2b$12$Jmmu8lkVOYy1byb1lfrgd.M7rHRxmLtfefa/oKiXeeOdwa5.rfvwm"
         db.execute(text("""
-            INSERT INTO users (email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-            VALUES ('demo@example.com', :password_hash, 'Demo', 'User', 1, 100, true)
+            INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
+            VALUES (gen_random_uuid(), 'demo@example.com', :password_hash, 'Demo', 'User', 1, 100, true)
         """), {"password_hash": demo_hash})
 
         # Create boss user (password: boss123)
         boss_hash = "$2b$12$ue6QnVYW3pEcVZ.FqbF7W.VGqE8n2vKZqaALy6uGhXwp5yPzL7yKO"
         db.execute(text("""
-            INSERT INTO users (email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-            VALUES ('boss@example.com', :password_hash, 'Boss', 'User', 2, 1000, true)
+            INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
+            VALUES (gen_random_uuid(), 'boss@example.com', :password_hash, 'Boss', 'User', 2, 1000, true)
         """), {"password_hash": boss_hash})
 
         db.commit()
