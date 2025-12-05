@@ -47,13 +47,13 @@ class UserResponse(BaseModel):
     """User information response schema"""
     id: str
     email: str
-    first_name: Optional[str]
-    last_name: Optional[str]
-    company: Optional[str]
-    email_verified: bool
-    subscription_tier: str
-    credits_balance: int
-    created_at: datetime
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    company: Optional[str] = None
+    email_verified: bool = False
+    subscription_tier: str = "free"
+    credits_balance: int = 0
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
