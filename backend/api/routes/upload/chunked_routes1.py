@@ -8,10 +8,13 @@ from typing import Optional
 import uuid
 from datetime import datetime, timedelta
 
-from ...models.database import get_db
-from ...models.user import User
-from ...auth.dependencies import get_current_user
-from ...config import get_settings
+from backend.models.database import get_database as get_db
+from backend.models.user import User
+from backend.auth.dependencies import get_current_user
+from backend.config import settings as config_settings
+
+def get_settings():
+    return config_settings
 
 router = APIRouter(prefix="/chunked-upload", tags=["chunked-upload"])
 settings = get_settings()
@@ -27,7 +30,7 @@ class ChunkedUploadSession:
         self.chunk_size = chunk_size
         self.chunks_received = set()
         self.total_chunks = (total_size + chunk_size - 1) // chunk_size
-        self.temp_dir = os.path.join(settings.UPLOAD_PATH, "temp", upload_id)
+        self.temp_dir = os.path.join(settings.upload_path, "temp", upload_id)
         self.created_at = datetime.utcnow()
         
         # Create temp directory
@@ -49,18 +52,23 @@ async def initialize_chunked_upload(
     db: Session = Depends(get_db)
 ):
     """Initialize a chunked upload session"""
-    
+
+    # Get user's subscription tier name
+    tier_name = "free"
+    if current_user.subscription_tier:
+        tier_name = current_user.subscription_tier.name
+
     # Validate file size limits based on user plan
     max_file_size = {
         'free': 100 * 1024 * 1024,      # 100MB
         'pro': 500 * 1024 * 1024,       # 500MB
         'enterprise': 2 * 1024 * 1024 * 1024  # 2GB
-    }.get(current_user.subscription_tier, 100 * 1024 * 1024)
-    
+    }.get(tier_name, 100 * 1024 * 1024)
+
     if total_size > max_file_size:
         raise HTTPException(
             status_code=413,
-            detail=f"File size exceeds limit for {current_user.subscription_tier} plan"
+            detail=f"File size exceeds limit for {tier_name} plan"
         )
     
     # Validate file type

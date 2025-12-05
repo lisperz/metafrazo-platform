@@ -8,10 +8,13 @@ from typing import Optional
 import uuid
 from datetime import datetime, timedelta
 
-from ...models.database import get_db
-from ...models.user import User
-from ...auth.dependencies import get_current_user
-from ...config import get_settings
+from backend.models.database import get_database as get_db
+from backend.models.user import User
+from backend.auth.dependencies import get_current_user
+from backend.config import settings as config_settings
+
+def get_settings():
+    return config_settings
 
 router = APIRouter(prefix="/chunked-upload", tags=["chunked-upload"])
 settings = get_settings()
@@ -49,7 +52,7 @@ async def finalize_chunked_upload(
         file_id = str(uuid.uuid4())
         file_extension = os.path.splitext(session.filename)[1]
         final_filename = f"{file_id}{file_extension}"
-        final_path = os.path.join(settings.UPLOAD_PATH, final_filename)
+        final_path = os.path.join(settings.upload_path, final_filename)
         
         # Combine chunks into final file
         async with aiofiles.open(final_path, 'wb') as final_file:

@@ -22,7 +22,7 @@ from backend.models.user import User
 from backend.models.file import File, FileType
 from backend.models.job import VideoJob, JobStatus
 from backend.auth.dependencies import get_current_user
-from backend.services.s3_service import s3_service
+from backend.services.s3 import s3_service
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
