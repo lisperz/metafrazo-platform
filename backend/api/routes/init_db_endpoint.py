@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from backend.models.database import get_database
 from backend.auth.jwt_handler import JWTHandler
+from backend.models.user import User
 
 router = APIRouter()
 

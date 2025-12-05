@@ -11,8 +11,15 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/video_inpainting")
+# Database configuration - Railway injects DATABASE_URL automatically
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    # Fallback for local development only
+    DATABASE_URL = "postgresql://user:password@localhost:5432/video_inpainting"
+    logger.warning("DATABASE_URL not set, using local fallback. Set DATABASE_URL in production!")
+else:
+    logger.info(f"Using DATABASE_URL from environment (host: {DATABASE_URL.split('@')[1].split('/')[0] if '@' in DATABASE_URL else 'unknown'})")
 
 # For development with SQLite
 if DATABASE_URL.startswith("sqlite"):
