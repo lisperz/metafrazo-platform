@@ -1,12 +1,24 @@
 import axios, { AxiosResponse } from 'axios';
 
 // Base API configuration
-// Railway doesn't inject env vars at build time properly for React apps,
-// so we hardcode the production backend URL as fallback
-const API_BASE_URL = process.env.REACT_APP_API_URL ||
-  (window.location.hostname.includes('railway.app')
+// Determine if we're running on Railway production
+const isRailwayProduction = typeof window !== 'undefined' &&
+  window.location.hostname.includes('railway.app');
+
+// Use environment variable if set and not empty, otherwise detect environment
+const API_BASE_URL = (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL.length > 0)
+  ? process.env.REACT_APP_API_URL
+  : isRailwayProduction
     ? 'https://backend-production-268a.up.railway.app/api/v1'
-    : '/api/v1');
+    : '/api/v1';
+
+// Debug logging for production troubleshooting
+console.log('[API] Configuration:', {
+  hostname: typeof window !== 'undefined' ? window.location.hostname : 'SSR',
+  isRailwayProduction,
+  envVar: process.env.REACT_APP_API_URL,
+  finalUrl: API_BASE_URL
+});
 
 const api = axios.create({
   baseURL: API_BASE_URL,
