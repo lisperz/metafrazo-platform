@@ -58,6 +58,8 @@ def debug_login(email: str, password: str, db: Session = Depends(get_database)):
 @router.post("/reset-user-password")
 def reset_user_password(email: str, new_password: str, db: Session = Depends(get_database)):
     """Reset a user's password with a properly hashed password"""
+    from datetime import datetime
+
     try:
         user = db.query(User).filter(User.email == email).first()
         if not user:
@@ -69,12 +71,18 @@ def reset_user_password(email: str, new_password: str, db: Session = Depends(get
         # Update user
         user.password_hash = new_hash
         user.status = "active"
+
+        # Fix created_at if null
+        if user.created_at is None:
+            user.created_at = datetime.utcnow()
+
         db.commit()
 
         return {
             "success": True,
             "email": email,
             "new_hash_prefix": new_hash[:30],
+            "created_at_fixed": user.created_at is not None,
             "message": "Password reset successfully"
         }
 
