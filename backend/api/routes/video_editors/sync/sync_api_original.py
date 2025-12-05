@@ -100,8 +100,13 @@ async def call_sync_api(video_url: str, audio_url: str) -> str:
         }
     }
 
+    # Use the same API key as Pro video editor from settings
+    sync_api_key = settings.sync_api_key
+    if not sync_api_key:
+        raise Exception("Sync.so API key not configured (SYNC_API_KEY)")
+
     headers = {
-        "x-api-key": "sk-6YLR3N7qQcidA2tTeTWCZg.gQ4IrWevs5KJR-RTy38nHZJmaW53jP6m"
+        "x-api-key": sync_api_key
     }
 
     logger.info(f"Calling sync API with data: {json.dumps(request_data, indent=2)}")
@@ -127,8 +132,13 @@ async def poll_sync_status(generation_id: str) -> dict:
     """
     url = f"https://api.sync.so/v2/generate/{generation_id}"
 
+    # Use the same API key as Pro video editor from settings
+    sync_api_key = settings.sync_api_key
+    if not sync_api_key:
+        raise Exception("Sync.so API key not configured (SYNC_API_KEY)")
+
     headers = {
-        "x-api-key": "sk-6YLR3N7qQcidA2tTeTWCZg.gQ4IrWevs5KJR-RTy38nHZJmaW53jP6m"
+        "x-api-key": sync_api_key
     }
 
     async with aiohttp.ClientSession() as session:
