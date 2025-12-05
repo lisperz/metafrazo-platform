@@ -16,24 +16,24 @@ RUN npm run build
 # Production stage
 FROM nginx:alpine
 
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+# Install envsubst for environment variable substitution
+RUN apk add --no-cache gettext
+
+# Copy custom nginx config template
+COPY nginx.railway.conf /etc/nginx/nginx.conf.template
 
 # Copy built application
 COPY --from=build /app/build /usr/share/nginx/html
 
-# Create nginx user
-# nginx user already exists in nginx:alpine image
-
 # Set permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html
 
-# Expose port
+# Expose port (will be overridden by Railway's PORT)
 EXPOSE 80
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/ || exit 1
+    CMD curl -f http://localhost:${PORT:-80}/health || exit 1
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Start nginx with PORT substitution
+CMD envsubst '${PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g 'daemon off;'
