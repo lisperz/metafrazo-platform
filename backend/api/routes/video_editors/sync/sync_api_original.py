@@ -22,7 +22,7 @@ from backend.models.user import User
 from backend.models.file import File, FileType
 from backend.models.job import VideoJob, JobStatus
 from backend.auth.dependencies import get_current_user
-from backend.services.s3_service import s3_service
+from backend.services.s3 import s3_service
 from backend.config import settings
 
 # Note: sync.so does not provide a Python package
@@ -376,8 +376,8 @@ async def monitor_ghostcut_final_processing(job_id: str, ghostcut_task_id: str, 
     """
     Monitor GhostCut processing after sync completion
     """
-    # Import the status checking function from direct_process.py
-    from backend.api.routes.direct_process import check_ghostcut_status_async
+    # Import the status checking function from direct_process_original.py
+    from backend.api.routes.jobs.processing.direct_process_original import check_ghostcut_status_async
 
     try:
         while True:
