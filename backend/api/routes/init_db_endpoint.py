@@ -47,10 +47,13 @@ def initialize_database(db: Session = Depends(get_database)):
         if demo_exists == 0:
             demo_hash = "$2b$12$Jmmu8lkVOYy1byb1lfrgd.M7rHRxmLtfefa/oKiXeeOdwa5.rfvwm"
             db.execute(text("""
-                INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-                VALUES (gen_random_uuid(), 'demo@example.com', :password_hash, 'Demo', 'User', :tier_id, 100, true)
+                INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified, status)
+                VALUES (gen_random_uuid(), 'demo@example.com', :password_hash, 'Demo', 'User', :tier_id, 100, true, 'active')
             """), {"password_hash": demo_hash, "tier_id": free_tier_id})
             users_created += 1
+        else:
+            # Update existing user to active status
+            db.execute(text("UPDATE users SET status = 'active' WHERE email = 'demo@example.com'"))
 
         # Check and create boss user (password: boss123)
         boss_exists = db.execute(text("SELECT COUNT(*) FROM users WHERE email = 'boss@example.com'")).scalar()
@@ -58,10 +61,13 @@ def initialize_database(db: Session = Depends(get_database)):
         if boss_exists == 0:
             boss_hash = "$2b$12$ue6QnVYW3pEcVZ.FqbF7W.VGqE8n2vKZqaALy6uGhXwp5yPzL7yKO"
             db.execute(text("""
-                INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified)
-                VALUES (gen_random_uuid(), 'boss@example.com', :password_hash, 'Boss', 'User', :tier_id, 1000, true)
+                INSERT INTO users (id, email, password_hash, first_name, last_name, subscription_tier_id, credits_balance, email_verified, status)
+                VALUES (gen_random_uuid(), 'boss@example.com', :password_hash, 'Boss', 'User', :tier_id, 1000, true, 'active')
             """), {"password_hash": boss_hash, "tier_id": pro_tier_id})
             users_created += 1
+        else:
+            # Update existing user to active status
+            db.execute(text("UPDATE users SET status = 'active' WHERE email = 'boss@example.com'"))
 
         db.commit()
 
