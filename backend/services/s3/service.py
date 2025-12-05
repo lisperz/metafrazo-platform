@@ -26,10 +26,24 @@ class S3Service:
     def __init__(self) -> None:
         """Initialize S3 client with credentials from settings"""
         try:
-            aws_key = settings.aws_access_key_id
-            aws_secret = settings.aws_secret_access_key
-            region = settings.aws_region or "us-east-1"
-            bucket = settings.aws_s3_bucket or "your-s3-bucket-name"
+            # Get credentials and strip any whitespace/newlines
+            aws_key = (settings.aws_access_key_id or "").strip()
+            aws_secret = (settings.aws_secret_access_key or "").strip()
+            region = (settings.aws_region or "us-east-1").strip()
+            bucket = (settings.aws_s3_bucket or "your-s3-bucket-name").strip()
+
+            # Log credential info for debugging (safely)
+            logger.info(f"AWS credentials check:")
+            logger.info(f"  - Access Key ID: {aws_key[:4]}...{aws_key[-4:] if len(aws_key) > 8 else 'SHORT'} (len={len(aws_key)})")
+            logger.info(f"  - Secret Key: {'SET' if aws_secret else 'NOT SET'} (len={len(aws_secret)})")
+            logger.info(f"  - Region: {region}")
+            logger.info(f"  - Bucket: {bucket}")
+
+            # Validate credentials are present
+            if not aws_key or not aws_secret:
+                logger.error("AWS credentials not configured properly")
+                logger.error(f"AWS_ACCESS_KEY_ID set: {bool(aws_key)}")
+                logger.error(f"AWS_SECRET_ACCESS_KEY set: {bool(aws_secret)}")
 
             self.s3_client = boto3.client(
                 's3',

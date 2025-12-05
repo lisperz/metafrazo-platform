@@ -16,10 +16,17 @@ def check_services():
     from backend.config import settings
     import os
 
+    # Get raw credentials for debugging (safely)
+    aws_key = (settings.aws_access_key_id or "").strip()
+    aws_secret = (settings.aws_secret_access_key or "").strip()
+
     results = {
         "aws": {
-            "access_key_configured": bool(settings.aws_access_key_id),
-            "secret_key_configured": bool(settings.aws_secret_access_key),
+            "access_key_configured": bool(aws_key),
+            "access_key_length": len(aws_key),
+            "access_key_preview": f"{aws_key[:4]}...{aws_key[-4:]}" if len(aws_key) > 8 else "TOO_SHORT",
+            "secret_key_configured": bool(aws_secret),
+            "secret_key_length": len(aws_secret),
             "region": settings.aws_region,
             "bucket": settings.aws_s3_bucket,
         },
@@ -44,6 +51,13 @@ def check_services():
         from backend.services.s3 import s3_service
         results["aws"]["s3_service_initialized"] = True
         results["aws"]["bucket_name"] = s3_service.bucket_name
+
+        # Test actual S3 connection
+        try:
+            connection_ok = s3_service.test_connection()
+            results["aws"]["s3_connection_test"] = "SUCCESS" if connection_ok else "FAILED"
+        except Exception as conn_e:
+            results["aws"]["s3_connection_test"] = f"ERROR: {str(conn_e)}"
     except Exception as e:
         results["aws"]["s3_service_initialized"] = False
         results["aws"]["s3_error"] = str(e)
@@ -56,6 +70,67 @@ def check_services():
     except Exception as e:
         results["sync_so"]["service_initialized"] = False
         results["sync_so"]["error"] = str(e)
+
+    return results
+
+
+@router.get("/test-s3-upload")
+def test_s3_upload():
+    """Test S3 upload with a small test file"""
+    import tempfile
+    import os
+    from backend.config import settings
+
+    results = {
+        "test_started": True,
+        "credentials": {
+            "access_key_set": bool(settings.aws_access_key_id),
+            "secret_key_set": bool(settings.aws_secret_access_key),
+            "region": settings.aws_region,
+            "bucket": settings.aws_s3_bucket
+        }
+    }
+
+    try:
+        from backend.services.s3 import s3_service
+
+        # Create a small test file
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.txt', delete=False
+        ) as f:
+            f.write("S3 upload test from video inpainting service")
+            test_file_path = f.name
+
+        try:
+            # Try to upload the test file
+            test_key = f"test/s3-test-{os.getpid()}.txt"
+            results["test_key"] = test_key
+
+            s3_service.s3_client.upload_file(
+                test_file_path,
+                s3_service.bucket_name,
+                test_key
+            )
+            results["upload_success"] = True
+            results["public_url"] = s3_service.get_public_url(test_key)
+
+            # Clean up - delete the test file from S3
+            s3_service.delete_file(test_key)
+            results["cleanup_success"] = True
+
+        except Exception as upload_e:
+            results["upload_success"] = False
+            results["upload_error"] = str(upload_e)
+            results["error_type"] = type(upload_e).__name__
+
+        finally:
+            # Clean up local temp file
+            if os.path.exists(test_file_path):
+                os.unlink(test_file_path)
+
+    except Exception as e:
+        results["service_error"] = str(e)
+        results["error_type"] = type(e).__name__
 
     return results
 
