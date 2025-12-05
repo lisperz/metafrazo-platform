@@ -2,7 +2,7 @@
 Authentication routes for user registration, login, and token management
 """
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.models.database import get_database
@@ -41,23 +41,33 @@ async def register(
     )
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 async def login(
     login_data: UserLogin,
     request: Request,
     db: Session = Depends(get_database)
 ):
     """Login user and return JWT tokens"""
-    access_token, refresh_token, user_response = await handle_user_login(
-        login_data, request, db
-    )
+    try:
+        access_token, refresh_token, user_response = await handle_user_login(
+            login_data, request, db
+        )
 
-    return TokenResponse(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=settings.access_token_expire_minutes * 60,
-        user=user_response
-    )
+        return TokenResponse(
+            access_token=access_token,
+            refresh_token=refresh_token,
+            expires_in=settings.access_token_expire_minutes * 60,
+            user=user_response
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        import traceback
+        logger = logging.getLogger(__name__)
+        logger.error(f"Login error: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Login failed: {str(e)}")
 
 
 @router.post("/refresh", response_model=TokenResponse)
