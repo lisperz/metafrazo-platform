@@ -56,8 +56,67 @@
 
 ---
 
-## 🚀 Getting Started Path
+### 4. **[RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md)** 🚂 **⭐ EASIEST!**
+**Railway.app Deployment** - Fastest and simplest deployment option!
 
+**Contents**:
+- 10-minute deployment guide
+- One-click PostgreSQL & Redis
+- No AWS permissions needed
+- $5/month free tier
+- Auto-deploy from GitHub
+- Perfect for getting URL quickly
+
+**Perfect for**: Anyone who wants to deploy FAST and avoid AWS complexity. **RECOMMENDED for beginners!**
+
+---
+
+### 5. **[DEPLOYMENT_SUMMARY.md](./DEPLOYMENT_SUMMARY.md)** ☁️
+**Deployment Overview** - Understand why and how to deploy to production.
+
+**Contents**:
+- Why deploy to cloud (vs localhost)?
+- Railway vs AWS comparison
+- Microservices integration explanation
+- Cost breakdown
+- Quick start guide
+
+**Perfect for**: First-time deployers who need to understand the "why" before the "how".
+
+---
+
+### 6. **[SIMPLE_AWS_DEPLOYMENT.md](./SIMPLE_AWS_DEPLOYMENT.md)** 🚀
+**AWS Deployment** - Step-by-step AWS deployment guide.
+
+**Contents**:
+- Deploy backend to AWS App Runner
+- Set up RDS PostgreSQL database
+- Configure Redis cache
+- Deploy frontend to Netlify
+- Environment configuration
+- Testing and monitoring
+
+**Perfect for**: Those who have AWS access and prefer AWS infrastructure.
+
+---
+
+### 7. **[AWS_DEPLOYMENT_GUIDE.md](./AWS_DEPLOYMENT_GUIDE.md)** ⚙️
+**Full AWS Elastic Beanstalk** - Advanced AWS deployment option.
+
+**Contents**:
+- AWS Elastic Beanstalk setup
+- Multi-container Docker configuration
+- CI/CD pipeline setup
+- Monitoring and logging
+- Security best practices
+
+**Perfect for**: Advanced users who want full control over infrastructure.
+
+---
+
+## 🚀 Getting Started Paths
+
+### For Local Development
 ```
 1. Read QUICK_START.md (5 minutes)
    ↓
@@ -68,6 +127,30 @@
 4. Reference API_SPECIFICATION.md as needed
    ↓
 5. Start integration! 🎉
+```
+
+### For Cloud Deployment (Fastest! ⭐)
+```
+1. Read RAILWAY_DEPLOYMENT.md (2 minutes)
+   ↓
+2. Run ./deploy_to_railway.sh (10 minutes)
+   ↓
+3. Get public URL immediately
+   ↓
+4. Share with company developer! 🎉
+```
+
+### For AWS Deployment (If Required)
+```
+1. Read DEPLOYMENT_SUMMARY.md (10 minutes)
+   ↓
+2. Get AWS permissions from boss
+   ↓
+3. Follow SIMPLE_AWS_DEPLOYMENT.md (45 minutes)
+   ↓
+4. Test your deployed service
+   ↓
+5. Share URL with company developer! 🎉
 ```
 
 ---
@@ -94,8 +177,9 @@
 #### **Get real-time job updates**
 → [API_SPECIFICATION.md - WebSocket Events](./API_SPECIFICATION.md#websocket-events)
 
-#### **Deploy to production**
-→ [INTEGRATION_GUIDE.md - Deployment](./INTEGRATION_GUIDE.md#deployment-architecture)
+#### **Deploy to production (get public URL)**
+→ [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md) - **Easiest & Fastest!** ⭐
+→ [SIMPLE_AWS_DEPLOYMENT.md](./SIMPLE_AWS_DEPLOYMENT.md) - AWS alternative
 
 #### **Troubleshoot errors**
 → [QUICK_START.md - Troubleshooting](./QUICK_START.md#-troubleshooting)
@@ -179,7 +263,7 @@ Found an issue or want to improve the docs? Please:
 
 ## 🔄 Last Updated
 
-**Date**: December 1, 2025
+**Date**: December 2, 2025
 **API Version**: 1.0.0
 
 ---

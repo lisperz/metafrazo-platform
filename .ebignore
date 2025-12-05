@@ -1,0 +1,52 @@
+# Elastic Beanstalk ignore file
+# Files and directories to exclude from deployment
+
+# Git
+.git
+.gitignore
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node.js
+node_modules
+frontend/node_modules
+frontend/build
+npm-debug.log
+
+# IDE
+.idea
+.vscode
+.DS_Store
+
+# Environment
+.env
+*.env.local
+
+# Logs
+logs/
+*.log
+
+# Docker volumes (data directories)
+postgres_data
+redis_data
+upload_data
+
+# Documentation (not needed in production)
+docs/
+discuss/
+
+# Test files
+test_*.py
+test_*.html
+*_test.py
+
+# Temporary files
+*.tmp
+*.swp
+*.bak

@@ -71,8 +71,8 @@ class User(Base):
     
     def set_password(self, password: str):
         """Hash and set user password"""
-        salt = bcrypt.gensalt()
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
+        from backend.auth.jwt_handler import JWTHandler
+        self.password_hash = JWTHandler.hash_password(password)
     
     def check_password(self, password: str) -> bool:
         """Verify password against hash"""
