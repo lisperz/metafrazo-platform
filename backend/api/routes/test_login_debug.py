@@ -140,7 +140,17 @@ def test_full_login(email: str, password: str, request: Request, db: Session = D
             tier_name = "free"
             if user.subscription_tier:
                 tier_name = user.subscription_tier.name
-            steps.append({"step": 6, "status": "ok", "message": f"Tier: {tier_name}", "tier_id": user.subscription_tier_id})
+            steps.append({
+                "step": 6,
+                "status": "ok",
+                "message": f"Tier: {tier_name}",
+                "tier_id": user.subscription_tier_id,
+                "created_at": str(user.created_at) if user.created_at else None,
+                "first_name": user.first_name,
+                "last_name": user.last_name,
+                "email_verified": user.email_verified,
+                "credits_balance": user.credits_balance
+            })
         except Exception as e:
             return {"error": f"Subscription tier check failed: {str(e)}", "steps": steps, "traceback": traceback.format_exc()}
 
