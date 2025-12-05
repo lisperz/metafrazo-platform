@@ -5,24 +5,30 @@ JWT token handling for authentication
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt
 import secrets
 
 from backend.config import settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class JWTHandler:
     @staticmethod
     def hash_password(password: str) -> str:
-        """Hash a password"""
-        return pwd_context.hash(password)
-    
+        """Hash a password using bcrypt directly"""
+        password_bytes = password.encode('utf-8')
+        salt = bcrypt.gensalt(rounds=12)
+        hashed = bcrypt.hashpw(password_bytes, salt)
+        return hashed.decode('utf-8')
+
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
-        """Verify a password against its hash"""
-        return pwd_context.verify(plain_password, hashed_password)
+        """Verify a password against its hash using bcrypt directly"""
+        try:
+            password_bytes = plain_password.encode('utf-8')
+            hashed_bytes = hashed_password.encode('utf-8')
+            return bcrypt.checkpw(password_bytes, hashed_bytes)
+        except Exception:
+            return False
     
     @staticmethod
     def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta] = None) -> str:
@@ -119,13 +125,13 @@ class JWTHandler:
     def generate_api_key() -> str:
         """Generate a secure API key"""
         return f"vti_{secrets.token_urlsafe(32)}"  # vti = video text inpainting
-    
+
     @staticmethod
     def hash_api_key(api_key: str) -> str:
-        """Hash an API key for storage"""
-        return pwd_context.hash(api_key)
-    
+        """Hash an API key for storage using bcrypt"""
+        return JWTHandler.hash_password(api_key)
+
     @staticmethod
     def verify_api_key(plain_key: str, hashed_key: str) -> bool:
         """Verify API key against its hash"""
-        return pwd_context.verify(plain_key, hashed_key)
+        return JWTHandler.verify_password(plain_key, hashed_key)
