@@ -21,7 +21,6 @@ import SettingsPage from './pages/admin/SettingsPage';
 import AdminPage from './pages/admin/AdminPage';
 import VideoInpaintingPage from './pages/video/VideoInpaintingPage';
 import SimpleVideoInpaintingPage from './pages/video/SimpleVideoInpaintingPage';
-import TranslationsPage from './pages/video/TranslationsPage';
 import ProVideoEditorPage from './pages/video/ProVideoEditorPage';
 import VideoEditorPage from './pages/video/VideoEditorPage';
 
@@ -73,9 +72,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <>{children}</>;
   }
   
-  // Show sidebar layout for authenticated users or specific public routes
-  const showSidebarRoutes = ['/translate', '/public-translate'];
-  const shouldShowSidebar = user || showSidebarRoutes.includes(location.pathname);
+  // Show sidebar layout for authenticated users
+  const shouldShowSidebar = user;
   
   if (!shouldShowSidebar) {
     return <>{children}</>;
@@ -224,18 +222,14 @@ const App: React.FC = () => {
           }
         />
         
-        {/* Translation Routes */}
+        {/* History Route */}
         <Route
-          path="/translate"
-          element={<TranslationsPage />}
-        />
-        <Route 
-          path="/history" 
+          path="/history"
           element={
             <ProtectedRoute>
               <JobsPage />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route 
           path="/credits" 

@@ -56,13 +56,6 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
 
   const menuItems: MenuItem[] = [
     {
-      id: 'translate',
-      label: 'Translate',
-      icon: <Translate />,
-      path: '/translate',
-      section: 'Translate',
-    },
-    {
       id: 'editor',
       label: 'Video Editor',
       icon: <VideoSettings />,
