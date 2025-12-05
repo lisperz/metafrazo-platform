@@ -170,6 +170,43 @@ def test_full_login(email: str, password: str, request: Request, db: Session = D
             db.rollback()
             return {"error": f"Commit failed: {str(e)}", "steps": steps, "traceback": traceback.format_exc()}
 
+        # Step 8: Build UserResponse (this is where actual login fails)
+        try:
+            from backend.api.routes.auth.schemas import UserResponse
+            tier_name = "free"
+            if user.subscription_tier:
+                tier_name = user.subscription_tier.name
+
+            user_response = UserResponse(
+                id=str(user.id),
+                email=user.email,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                company=user.company,
+                email_verified=user.email_verified,
+                subscription_tier=tier_name,
+                credits_balance=user.credits_balance,
+                created_at=user.created_at
+            )
+            steps.append({"step": 8, "status": "ok", "message": "UserResponse built successfully"})
+        except Exception as e:
+            return {"error": f"UserResponse build failed: {str(e)}", "steps": steps, "traceback": traceback.format_exc()}
+
+        # Step 9: Build TokenResponse
+        try:
+            from backend.api.routes.auth.schemas import TokenResponse
+            from backend.config import settings
+
+            token_response = TokenResponse(
+                access_token=access_token,
+                refresh_token=refresh_token,
+                expires_in=settings.access_token_expire_minutes * 60,
+                user=user_response
+            )
+            steps.append({"step": 9, "status": "ok", "message": "TokenResponse built successfully"})
+        except Exception as e:
+            return {"error": f"TokenResponse build failed: {str(e)}", "steps": steps, "traceback": traceback.format_exc()}
+
         return {
             "success": True,
             "steps": steps,
