@@ -3,6 +3,7 @@
  */
 
 import { EffectType } from '../types';
+import { getApiBaseUrl } from '../../../../services/api';
 
 // Effect Colors
 export const EFFECT_COLORS: Record<EffectType, string> = {
@@ -70,13 +71,27 @@ export const UI_CONFIG = {
   DRAGGABLE_HANDLE_WIDTH: 8,
 } as const;
 
-// API Endpoints
+/**
+ * API endpoint constants
+ * Uses dynamic base URL to support both local development and production
+ */
+export const getApiEndpoints = () => {
+  const baseUrl = getApiBaseUrl();
+  return {
+    SYNC_PROCESS: `${baseUrl}/sync/sync-process`,
+    DIRECT_PROCESS: `${baseUrl}/direct/direct-process`,
+    AUTH_ME: `${baseUrl}/auth/me`,
+    AUTH_LOGIN: `${baseUrl}/auth/login`,
+  };
+};
+
+// For backward compatibility - will be evaluated at runtime
 export const API_ENDPOINTS = {
-  SYNC_PROCESS: '/api/v1/sync/sync-process',
-  DIRECT_PROCESS: '/api/v1/direct/direct-process',
-  AUTH_ME: '/api/v1/auth/me',
-  AUTH_LOGIN: '/api/v1/auth/login',
-} as const;
+  get SYNC_PROCESS() { return getApiEndpoints().SYNC_PROCESS; },
+  get DIRECT_PROCESS() { return getApiEndpoints().DIRECT_PROCESS; },
+  get AUTH_ME() { return getApiEndpoints().AUTH_ME; },
+  get AUTH_LOGIN() { return getApiEndpoints().AUTH_LOGIN; },
+};
 
 // Auth Configuration
 export const AUTH_CONFIG = {

@@ -23,6 +23,7 @@ import {
 import { useEffectsStore, VideoEffect } from '../../store/effectsStore';
 import { useNavigate } from 'react-router-dom';
 import { calculateProgressPercentage, formatTime as formatTimeUtil, clampTime, handleTimelineInteraction } from '../../utils/timelineUtils';
+import { API_ENDPOINTS } from './GhostCut/constants/editorConstants';
 
 interface GhostCutVideoEditorProps {
   videoUrl: string;
@@ -160,7 +161,7 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
       if (existingToken) {
         // Try to verify the token by making a test request
         try {
-          const response = await fetch('/api/v1/auth/me', {
+          const response = await fetch(API_ENDPOINTS.AUTH_ME, {
             headers: {
               'Authorization': `Bearer ${existingToken}`
             }
@@ -176,7 +177,7 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
 
       // Auto-login with demo account
       try {
-        const response = await fetch('/api/v1/auth/login', {
+        const response = await fetch(API_ENDPOINTS.AUTH_LOGIN, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -633,8 +634,8 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
 
               // Choose API endpoint based on whether audio is provided
               const apiEndpoint = audioFile
-                ? '/api/v1/sync/sync-process'  // Use sync workflow for lip-sync + text removal
-                : '/api/v1/direct/direct-process';  // Use direct workflow for text removal only
+                ? API_ENDPOINTS.SYNC_PROCESS  // Use sync workflow for lip-sync + text removal
+                : API_ENDPOINTS.DIRECT_PROCESS;  // Use direct workflow for text removal only
 
               const progressMessage = audioFile
                 ? 'Uploading video and audio files for lip-sync processing...'
