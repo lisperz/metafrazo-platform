@@ -33,4 +33,4 @@ root.render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>
-);// Force rebuild: Fri Dec  5 10:19:21 CST 2025
+);

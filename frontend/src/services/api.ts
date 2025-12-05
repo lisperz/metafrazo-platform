@@ -1,7 +1,12 @@
 import axios, { AxiosResponse } from 'axios';
 
-// Base API configuration - use relative path to work with nginx proxy
-const API_BASE_URL = process.env.REACT_APP_API_URL || '/api/v1';
+// Base API configuration
+// Railway doesn't inject env vars at build time properly for React apps,
+// so we hardcode the production backend URL as fallback
+const API_BASE_URL = process.env.REACT_APP_API_URL ||
+  (window.location.hostname.includes('railway.app')
+    ? 'https://backend-production-268a.up.railway.app/api/v1'
+    : '/api/v1');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
