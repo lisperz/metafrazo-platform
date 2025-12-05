@@ -86,7 +86,21 @@ if settings.environment == "production":
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # CORS middleware - parse origins from comma-separated env var
+# Also auto-detect Railway frontend URLs from environment
 cors_origins_list = [origin.strip() for origin in settings.cors_origins.split(',') if origin.strip()]
+
+# Auto-add Railway frontend URL if RAILWAY_PUBLIC_DOMAIN is set for frontend
+# This allows dynamic Railway deployments without manual CORS config
+import os
+railway_frontend_domain = os.environ.get("RAILWAY_FRONTEND_URL", "")
+if railway_frontend_domain and railway_frontend_domain not in cors_origins_list:
+    cors_origins_list.append(railway_frontend_domain)
+
+# Fallback: if no origins configured and we're on Railway, allow common patterns
+if not cors_origins_list or cors_origins_list == [""]:
+    cors_origins_list = ["*"]  # Allow all in development/misconfigured state
+    logger.warning("CORS_ORIGINS not configured, allowing all origins (not recommended for production)")
+
 logger.info(f"CORS origins configured: {cors_origins_list}")
 
 app.add_middleware(
