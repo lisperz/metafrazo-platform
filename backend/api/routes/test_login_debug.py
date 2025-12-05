@@ -1,5 +1,5 @@
 """
-Debug endpoint to test login functionality step by step
+Debug endpoint to test login functionality and services
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
@@ -8,6 +8,56 @@ from backend.models.user import User
 from backend.auth.jwt_handler import JWTHandler
 
 router = APIRouter()
+
+
+@router.get("/check-services")
+def check_services():
+    """Check if S3 and Sync.so services are properly configured"""
+    from backend.config import settings
+    import os
+
+    results = {
+        "aws": {
+            "access_key_configured": bool(settings.aws_access_key_id),
+            "secret_key_configured": bool(settings.aws_secret_access_key),
+            "region": settings.aws_region,
+            "bucket": settings.aws_s3_bucket,
+        },
+        "sync_so": {
+            "api_key_configured": bool(settings.sync_api_key),
+            "api_url": settings.sync_api_url,
+        },
+        "ghostcut": {
+            "api_key_configured": bool(settings.ghostcut_api_key),
+            "app_key_configured": bool(settings.ghostcut_app_key),
+            "app_secret_configured": bool(settings.ghostcut_app_secret),
+        },
+        "environment": {
+            "environment": settings.environment,
+            "debug": settings.debug,
+            "cors_origins": settings.cors_origins,
+        }
+    }
+
+    # Test S3 connection
+    try:
+        from backend.services.s3 import s3_service
+        results["aws"]["s3_service_initialized"] = True
+        results["aws"]["bucket_name"] = s3_service.bucket_name
+    except Exception as e:
+        results["aws"]["s3_service_initialized"] = False
+        results["aws"]["s3_error"] = str(e)
+
+    # Test Sync.so service
+    try:
+        from backend.services.sync_segments_service import sync_segments_service
+        results["sync_so"]["service_initialized"] = True
+        results["sync_so"]["has_api_key"] = bool(sync_segments_service.api_key)
+    except Exception as e:
+        results["sync_so"]["service_initialized"] = False
+        results["sync_so"]["error"] = str(e)
+
+    return results
 
 
 @router.post("/debug-login")
