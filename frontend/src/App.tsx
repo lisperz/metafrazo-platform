@@ -131,9 +131,9 @@ const App: React.FC = () => {
       <Layout>
         <Routes>
         {/* Public Routes */}
-        <Route 
-          path="/" 
-          element={<Navigate to="/translate" replace />}
+        <Route
+          path="/"
+          element={<Navigate to="/login" replace />}
         />
         <Route 
           path="/simple" 
