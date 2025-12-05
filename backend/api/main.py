@@ -23,6 +23,7 @@ from backend.api.routes.admin import router as admin_router
 from backend.api.routes.video_editors import router as video_editors_router
 from backend.api.routes.upload import router as upload_router
 from backend.api.routes.init_db_endpoint import router as init_db_router
+from backend.api.routes.test_login_debug import router as debug_router
 
 from backend.api.websocket import websocket_router
 
@@ -222,6 +223,13 @@ app.include_router(
     init_db_router,
     prefix="/api/v1/setup",
     tags=["Setup"]
+)
+
+# Include debug router (for development only)
+app.include_router(
+    debug_router,
+    prefix="/api/v1/debug",
+    tags=["Debug"]
 )
 
 # Include WebSocket router
