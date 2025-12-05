@@ -85,17 +85,8 @@ app = FastAPI(
 if settings.environment == "production":
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
-# CORS middleware - build origins list from config and add Railway URLs
+# CORS middleware - parse origins from comma-separated env var
 cors_origins_list = [origin.strip() for origin in settings.cors_origins.split(',') if origin.strip()]
-# Always include Railway frontend URLs
-railway_origins = [
-    "https://frontend-production-b02b.up.railway.app",
-    "https://frontend-production-d797.up.railway.app",
-]
-for origin in railway_origins:
-    if origin not in cors_origins_list:
-        cors_origins_list.append(origin)
-
 logger.info(f"CORS origins configured: {cors_origins_list}")
 
 app.add_middleware(
