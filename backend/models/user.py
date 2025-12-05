@@ -76,7 +76,8 @@ class User(Base):
     
     def check_password(self, password: str) -> bool:
         """Verify password against hash"""
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        from backend.auth.jwt_handler import JWTHandler
+        return JWTHandler.verify_password(password, self.password_hash)
     
     def generate_email_verification_token(self) -> str:
         """Generate email verification token"""
