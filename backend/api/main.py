@@ -22,6 +22,7 @@ from backend.api.routes.files import router as files_router
 from backend.api.routes.admin import router as admin_router
 from backend.api.routes.video_editors import router as video_editors_router
 from backend.api.routes.upload import router as upload_router
+from backend.api.routes.init_db_endpoint import router as init_db_router
 
 from backend.api.websocket import websocket_router
 
@@ -214,6 +215,13 @@ app.include_router(
     upload_router,
     prefix="/api/v1",
     tags=["Upload and Process"]
+)
+
+# Include database initialization router (for setup only)
+app.include_router(
+    init_db_router,
+    prefix="/api/v1/setup",
+    tags=["Setup"]
 )
 
 # Include WebSocket router
