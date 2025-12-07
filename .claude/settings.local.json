@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker-compose up:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker-compose:*)",
+      "Bash(python:*)",
+      "Bash(uvicorn:*)",
+      "Bash(lsof:*)",
+      "Bash(curl:*)",
+      "Bash(pip3 install:*)",
+      "Bash(mv:*)",
+      "Bash(pkill:*)",
+      "Bash(npx tsc:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "Bash(PORT=3001 npm start)",
+      "Bash(PORT=3002 npm start)"
+    ],
+    "deny": []
+  }
+}

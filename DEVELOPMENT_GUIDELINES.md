@@ -115,7 +115,7 @@ This is a **Video Text Inpainting Service** - a professional SaaS platform for A
 ## Project Structure
 
 ```
-Test1-frazo/
+metafrazo-platform/
 ├── backend/                 # FastAPI application
 │   ├── api/
 │   │   ├── routes/         # API endpoints (auth, jobs, admin, etc.)

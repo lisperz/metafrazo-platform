@@ -49,7 +49,7 @@ railway login
 ### Step 3: Initialize Project (1 minute)
 
 ```bash
-cd /Users/zhuchen/Downloads/Test1-frazo
+cd /Users/zhuchen/Downloads/metafrazo-platform
 railway init
 ```
 

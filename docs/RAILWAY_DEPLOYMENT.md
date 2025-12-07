@@ -79,7 +79,7 @@ railway login
 
 ```bash
 # Navigate to your project
-cd /Users/zhuchen/Downloads/Test1-frazo
+cd /Users/zhuchen/Downloads/metafrazo-platform
 
 # Initialize Railway project
 railway init

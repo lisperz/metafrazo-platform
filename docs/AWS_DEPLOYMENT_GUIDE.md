@@ -163,7 +163,7 @@ upload_data
 
 ```bash
 # Navigate to project root
-cd /Users/zhuchen/Downloads/Test1-frazo
+cd /Users/zhuchen/Downloads/metafrazo-platform
 
 # Initialize EB application
 eb init
