@@ -3,7 +3,8 @@ export interface Job {
   display_name: string;
   original_filename: string;
   file_size: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  // Include both American (canceled) and British (cancelled) spellings for compatibility
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled' | 'canceled';
   progress?: number;
   credits_used?: number;
   estimated_credits?: number;

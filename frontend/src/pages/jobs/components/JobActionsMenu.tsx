@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, MenuList, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Menu, MenuList, MenuItem, ListItemIcon, ListItemText, alpha, useTheme } from '@mui/material';
 import { Download, Stop, Delete } from '@mui/icons-material';
 import { Job } from '../types';
 
@@ -13,6 +13,9 @@ interface JobActionsMenuProps {
   isDeleting: boolean;
 }
 
+// Terminal states where jobs can be deleted (handles both American and British spellings)
+const DELETABLE_STATUSES = ['completed', 'failed', 'cancelled', 'canceled'];
+
 const JobActionsMenu: React.FC<JobActionsMenuProps> = ({
   anchorEl,
   selectedJob,
@@ -22,6 +25,8 @@ const JobActionsMenu: React.FC<JobActionsMenuProps> = ({
   isCancelling,
   isDeleting,
 }) => {
+  const theme = useTheme();
+
   const handleDownload = () => {
     if (selectedJob?.output_url) {
       window.open(selectedJob.output_url, '_blank');
@@ -41,31 +46,69 @@ const JobActionsMenu: React.FC<JobActionsMenuProps> = ({
     }
   };
 
+  // Check if the job can be deleted (terminal states)
+  const canDelete = selectedJob?.status && DELETABLE_STATUSES.includes(selectedJob.status);
+
+  // Check if there are any actions available
+  const hasDownload = selectedJob?.status === 'completed' && selectedJob?.output_url;
+  const hasCancel = selectedJob?.status === 'processing';
+  const hasActions = hasDownload || hasCancel || canDelete;
+
   return (
-    <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
-      <MenuList>
-        {selectedJob?.status === 'completed' && selectedJob?.output_url && (
-          <MenuItem onClick={handleDownload}>
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      PaperProps={{
+        sx: {
+          minWidth: 160,
+          borderRadius: 2,
+        },
+      }}
+    >
+      <MenuList sx={{ py: 0.5 }}>
+        {hasDownload && (
+          <MenuItem onClick={handleDownload} sx={{ borderRadius: 1, mx: 0.5 }}>
             <ListItemIcon>
-              <Download />
+              <Download fontSize="small" />
             </ListItemIcon>
             <ListItemText>Download Video</ListItemText>
           </MenuItem>
         )}
-        {selectedJob?.status === 'processing' && (
-          <MenuItem onClick={handleCancel} disabled={isCancelling}>
+        {hasCancel && (
+          <MenuItem
+            onClick={handleCancel}
+            disabled={isCancelling}
+            sx={{ borderRadius: 1, mx: 0.5 }}
+          >
             <ListItemIcon>
-              <Stop />
+              <Stop fontSize="small" />
             </ListItemIcon>
-            <ListItemText>Cancel Job</ListItemText>
+            <ListItemText>{isCancelling ? 'Cancelling...' : 'Cancel Job'}</ListItemText>
           </MenuItem>
         )}
-        {selectedJob?.status && ['completed', 'failed', 'cancelled'].includes(selectedJob.status) && (
-          <MenuItem onClick={handleDelete} disabled={isDeleting}>
+        {canDelete && (
+          <MenuItem
+            onClick={handleDelete}
+            disabled={isDeleting}
+            sx={{
+              borderRadius: 1,
+              mx: 0.5,
+              color: 'error.main',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.error.main, 0.08),
+              },
+            }}
+          >
             <ListItemIcon>
-              <Delete />
+              <Delete fontSize="small" sx={{ color: 'error.main' }} />
             </ListItemIcon>
-            <ListItemText>Delete Job</ListItemText>
+            <ListItemText>{isDeleting ? 'Deleting...' : 'Delete Job'}</ListItemText>
+          </MenuItem>
+        )}
+        {!hasActions && (
+          <MenuItem disabled sx={{ borderRadius: 1, mx: 0.5 }}>
+            <ListItemText sx={{ color: 'text.secondary' }}>No actions available</ListItemText>
           </MenuItem>
         )}
       </MenuList>

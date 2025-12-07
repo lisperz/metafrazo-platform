@@ -1,24 +1,24 @@
 # Next Session Context - Railway Deployment Status
 
 **Last Updated**: December 7, 2025
-**Current Status**: ✅ **FULLY DEPLOYED AND WORKING**
+**Current Status**: **FULLY DEPLOYED AND WORKING**
 
 ---
 
-## 🚀 Railway Deployment - Current State
+## Railway Deployment - Current State
 
-### ✅ All Services Running
+### All Services Running
 
 | Service | URL | Status |
 |---------|-----|--------|
-| Backend API | https://backend-production-268a.up.railway.app | ✅ Running |
-| Frontend | https://frontend-production-b02b.up.railway.app | ✅ Running |
-| PostgreSQL | Internal Railway connection | ✅ Connected |
-| Redis | Internal Railway connection | ✅ Connected |
-| Worker (Celery) | Internal | ✅ Running |
-| Beat (Scheduler) | Internal | ✅ Running |
+| Backend API | https://backend-production-268a.up.railway.app | Running |
+| Frontend | https://frontend-production-b02b.up.railway.app | Running |
+| PostgreSQL | Internal Railway connection | Connected |
+| Redis | Internal Railway connection | Connected |
+| Worker (Celery) | Internal | Running |
+| Beat (Scheduler) | Internal | Running |
 
-### ✅ Features Working
+### Features Working
 
 1. **User Authentication**: Login/logout with JWT tokens
 2. **Normal Video Editor**: `/editor` - Lip-sync + text removal
@@ -31,7 +31,7 @@
 
 ---
 
-## 🔑 Demo Credentials
+## Demo Credentials
 
 | Email | Password | Role |
 |-------|----------|------|
@@ -40,26 +40,22 @@
 
 ---
 
-## 📁 Key Files Reference
+## Key Files Reference
 
 ### Backend API Routes
 - **Normal Video Editor API**: `backend/api/routes/video_editors/sync/sync_api_original.py`
   - Endpoint: `POST /api/v1/video-editors/sync-process`
-
 - **Pro Video Editor API**: `backend/api/routes/video_editors/sync/routes.py`
   - Endpoint: `POST /api/v1/video-editors/pro-sync-process`
-
 - **GhostCut (Text Removal)**: `backend/api/routes/jobs/processing/direct_process_original.py`
   - Endpoint: `POST /api/v1/jobs/direct-process`
 
 ### Frontend Key Components
-- **Dashboard Page**: `frontend/src/pages/dashboard/DashboardPage/DashboardPage.tsx`
-- **Dashboard Data Hook**: `frontend/src/pages/dashboard/DashboardPage/hooks/useDashboardData.ts`
-- **Quick Actions**: `frontend/src/pages/dashboard/DashboardPage/components/QuickActions.tsx`
-- **Video Editor Page**: `frontend/src/pages/video/VideoEditorPage.tsx`
-- **Jobs Page**: `frontend/src/pages/jobs/JobsPage.tsx`
-- **Jobs Table**: `frontend/src/pages/jobs/components/JobsTable.tsx`
 - **Sidebar Navigation**: `frontend/src/components/Layout/Sidebar.tsx`
+- **Dashboard Page**: `frontend/src/pages/dashboard/DashboardPage/DashboardPage.tsx`
+- **Jobs Page**: `frontend/src/pages/jobs/JobsPage.tsx`
+- **Job Actions Menu**: `frontend/src/pages/jobs/components/JobActionsMenu.tsx`
+- **Video Editor Page**: `frontend/src/pages/video/VideoEditorPage.tsx`
 - **App Routes**: `frontend/src/App.tsx`
 
 ### Configuration
@@ -67,7 +63,7 @@
 
 ---
 
-## 📚 Railway CLI Reference
+## Railway CLI Reference
 
 ```bash
 # View logs
@@ -85,7 +81,7 @@ railway status
 
 ---
 
-## ⚠️ Important Notes
+## Important Notes
 
 1. **Frontend Environment Variables**: React embeds env vars at BUILD TIME. After changing `REACT_APP_*` variables, trigger a rebuild with `railway up --service frontend --detach`
 
@@ -93,52 +89,11 @@ railway status
 
 3. **Both video editors share the same API key**: Normal and Pro editors both use `settings.sync_api_key`
 
----
-
-## 🎯 Session Summary (December 7, 2025)
-
-### Issues Fixed
-
-1. ✅ **Dashboard TypeError Fix**: Fixed `TypeError: t.map is not a function` on dashboard
-   - Root cause: API returns `{jobs: [...]}` but code expected array directly
-   - Fixed in `useDashboardData.ts` to extract `jobsResponse?.jobs ?? []`
-
-2. ✅ **Removed Upload Page**: Removed standalone upload page, redirected `/upload` to `/editor`
-   - Updated `App.tsx` to redirect `/upload` → `/editor`
-   - Removed `UploadPage` import
-
-3. ✅ **Reorganized Dashboard Quick Actions**: Changed from upload-focused to editor-focused
-   - Video Editor button (primary)
-   - Pro Video Editor button (with PRO badge)
-   - Translation History button
-
-4. ✅ **Removed Dashboard API Error Warning**: Removed "API connection issues detected" warning
-   - Dashboard now silently handles API failures with fallback values
-
-5. ✅ **Updated Video Editor "How it works"**:
-   - Removed Ghostcut dashboard reference
-   - Added lip-sync audio upload information
-
-6. ✅ **Fixed Jobs Table**:
-   - Removed Duration column
-   - Fixed video name to show full name (not truncated)
-
-7. ✅ **Removed Jobs Page WebSocket Warning**: Removed "Real-time updates disconnected" warning
-
-### Files Modified (December 7, 2025)
-- `frontend/src/pages/dashboard/DashboardPage/DashboardPage.tsx`
-- `frontend/src/pages/dashboard/DashboardPage/hooks/useDashboardData.ts`
-- `frontend/src/pages/dashboard/DashboardPage/components/QuickActions.tsx`
-- `frontend/src/pages/dashboard/DashboardPage/components/RecentJobs.tsx`
-- `frontend/src/pages/video/VideoEditorPage.tsx`
-- `frontend/src/pages/jobs/JobsPage.tsx`
-- `frontend/src/pages/jobs/components/JobsTable.tsx`
-- `frontend/src/pages/jobs/components/JobTableRow.tsx`
-- `frontend/src/App.tsx`
+4. **Job Status Spelling**: Database uses `canceled` (American), frontend handles both `canceled` and `cancelled` (British)
 
 ---
 
-## 🚀 Current App Structure
+## Current App Structure
 
 ### Navigation (Sidebar)
 - **TRANSLATE**
@@ -153,19 +108,61 @@ railway status
   - Support → `/support`
 
 ### Main Pages
-- `/dashboard` - User dashboard with stats, quick actions, recent jobs
+- `/dashboard` - User dashboard with quick actions, credit usage, recent jobs
 - `/editor` - Normal video editor (text removal + lip-sync)
 - `/editor/pro` - Pro video editor (segment-based lip-sync)
 - `/history` or `/jobs` - Translation/job history
-- `/settings` - Account settings
+- `/credits` - Account settings and profile information
+
+### Sidebar Features
+- **MetaFrazo Logo**: Clickable, navigates to `/dashboard`
+- **Account Section**: Shows user email, avatar clickable to profile
+- **Account Dropdown**: Profile Settings and Sign Out options
 
 ---
 
-## ✅ Everything is Working!
+## Latest Updates (December 7, 2025)
+
+### UI Improvements
+
+1. **Account Dropdown Menu** (`Sidebar.tsx`)
+   - Added dropdown menu when clicking the expand arrow in Account section
+   - Menu includes: Profile Settings, Sign Out
+   - Sign Out calls logout API and redirects to `/login`
+
+2. **Clickable Logo and Avatar** (`Sidebar.tsx`)
+   - MetaFrazo logo (M icon) now clickable → navigates to `/dashboard`
+   - MetaFrazo text also clickable → navigates to `/dashboard`
+   - User avatar clickable → navigates to `/credits` (profile settings)
+
+3. **Removed Statistics Row** (`DashboardPage.tsx`)
+   - Removed StatsCards component from dashboard
+   - Dashboard now shows: Header, Subscription Alert, Quick Actions, Credit Usage, Recent Jobs
+
+4. **Fixed Job Actions Menu** (`JobActionsMenu.tsx`)
+   - Fixed empty menu for canceled jobs (spelling mismatch: `canceled` vs `cancelled`)
+   - Now handles both American (`canceled`) and British (`cancelled`) spellings
+   - Shows "Delete Job" option for all terminal states (completed, failed, canceled/cancelled)
+   - Shows "No actions available" when no actions are applicable
+   - Added loading states: "Cancelling...", "Deleting..."
+
+### Files Modified
+- `frontend/src/components/Layout/Sidebar.tsx`
+- `frontend/src/pages/dashboard/DashboardPage/DashboardPage.tsx`
+- `frontend/src/pages/jobs/components/JobActionsMenu.tsx`
+- `frontend/src/pages/jobs/types.ts`
+- `frontend/src/pages/jobs/utils/formatters.ts`
+
+---
+
+## Application Status
 
 The application is fully deployed and functional:
-- Clean dashboard without error warnings
+- Clean dashboard without statistics row
+- Clickable logo navigates to dashboard
+- Account dropdown with Sign Out functionality
+- Job actions menu properly shows Delete for all terminal job states
 - Video Editor with lip-sync + text removal
 - Pro Video Editor with segment-based processing
-- Translation History with full video names
+- Translation History with proper job actions
 - All API integrations working (GhostCut, Sync.so, AWS S3)

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Drawer,
   List,
@@ -13,6 +13,9 @@ import {
   useTheme,
   alpha,
   Chip,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import {
   Translate,
@@ -25,6 +28,8 @@ import {
   AccountCircle,
   VideoSettings,
   Star,
+  Logout,
+  Person,
 } from '@mui/icons-material';
 import ThemeToggle from '../Common/ThemeToggle';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -36,7 +41,7 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-interface MenuItem {
+interface NavMenuItem {
   id: string;
   label: string;
   icon: React.ReactNode;
@@ -51,10 +56,33 @@ const DRAWER_WIDTH = 280;
 const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const theme = useTheme();
 
-  const menuItems: MenuItem[] = [
+  // Account dropdown menu state
+  const [accountMenuAnchor, setAccountMenuAnchor] = useState<null | HTMLElement>(null);
+  const accountMenuOpen = Boolean(accountMenuAnchor);
+
+  const handleAccountMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setAccountMenuAnchor(event.currentTarget);
+  };
+
+  const handleAccountMenuClose = () => {
+    setAccountMenuAnchor(null);
+  };
+
+  const handleLogout = () => {
+    handleAccountMenuClose();
+    logout();
+    navigate('/login');
+  };
+
+  const handleProfileClick = () => {
+    navigate('/credits');
+    onClose();
+  };
+
+  const menuItems: NavMenuItem[] = [
     {
       id: 'editor',
       label: 'Video Editor',
@@ -125,6 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       <Box sx={{ p: 3 }} role="banner">
         <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
           <Box
+            onClick={() => { navigate('/dashboard'); onClose(); }}
             sx={{
               width: 32,
               height: 32,
@@ -134,19 +163,35 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               alignItems: 'center',
               justifyContent: 'center',
               mr: 2,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                transform: 'scale(1.08)',
+                boxShadow: 2,
+              },
             }}
+            aria-label="Go to dashboard"
           >
-            <Typography 
-              sx={{ 
-                color: 'white', 
-                fontWeight: 'bold', 
-                fontSize: 16 
+            <Typography
+              sx={{
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: 16
               }}
             >
               M
             </Typography>
           </Box>
-          <Box sx={{ flex: 1 }}>
+          <Box
+            onClick={() => { navigate('/dashboard'); onClose(); }}
+            sx={{
+              flex: 1,
+              cursor: 'pointer',
+              '&:hover': {
+                opacity: 0.8,
+              },
+            }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
               MetaFrazo
             </Typography>
@@ -263,15 +308,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
       </Box>
 
       {/* Account Section at Bottom */}
-      <Box 
-        sx={{ 
-          mt: 'auto', 
-          p: 2, 
-          borderTop: `1px solid ${theme.palette.divider}` 
+      <Box
+        sx={{
+          mt: 'auto',
+          p: 2,
+          borderTop: `1px solid ${theme.palette.divider}`
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
           <Avatar
+            onClick={handleProfileClick}
             sx={{
               width: 32,
               height: 32,
@@ -279,13 +325,21 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               color: 'text.secondary',
               fontSize: 14,
               mr: 2,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease-in-out',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.primary.main, 0.2),
+                color: 'primary.main',
+                transform: 'scale(1.05)',
+              },
             }}
+            aria-label="Go to profile settings"
           >
-            {user?.first_name?.charAt(0) || 'A'}
+            {user?.first_name?.charAt(0) || 'D'}
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="body2" 
+            <Typography
+              variant="body2"
               sx={{ fontWeight: 500, lineHeight: 1.2 }}
             >
               Account
@@ -304,10 +358,75 @@ const Sidebar: React.FC<SidebarProps> = ({ open, onClose }) => {
               {user?.email || 'user@example.com'}
             </Typography>
           </Box>
-          <IconButton size="small" sx={{ ml: 1 }}>
+          <IconButton
+            size="small"
+            sx={{
+              ml: 1,
+              transition: 'transform 0.2s ease-in-out',
+              transform: accountMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            }}
+            onClick={handleAccountMenuOpen}
+            aria-label="Open account menu"
+            aria-controls={accountMenuOpen ? 'account-menu' : undefined}
+            aria-haspopup="true"
+            aria-expanded={accountMenuOpen ? 'true' : undefined}
+          >
             <ExpandMore fontSize="small" />
           </IconButton>
         </Box>
+
+        {/* Account Dropdown Menu */}
+        <Menu
+          id="account-menu"
+          anchorEl={accountMenuAnchor}
+          open={accountMenuOpen}
+          onClose={handleAccountMenuClose}
+          anchorOrigin={{
+            vertical: 'top',
+            horizontal: 'right',
+          }}
+          transformOrigin={{
+            vertical: 'bottom',
+            horizontal: 'right',
+          }}
+          PaperProps={{
+            elevation: 3,
+            sx: {
+              minWidth: 180,
+              mt: -1,
+              borderRadius: 2,
+              '& .MuiMenuItem-root': {
+                px: 2,
+                py: 1.5,
+                borderRadius: 1,
+                mx: 1,
+                my: 0.5,
+              },
+            },
+          }}
+        >
+          <MenuItem onClick={() => { handleAccountMenuClose(); handleProfileClick(); }}>
+            <ListItemIcon>
+              <Person fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Profile Settings" />
+          </MenuItem>
+          <Divider sx={{ my: 1 }} />
+          <MenuItem
+            onClick={handleLogout}
+            sx={{
+              color: 'error.main',
+              '&:hover': {
+                backgroundColor: alpha(theme.palette.error.main, 0.08),
+              },
+            }}
+          >
+            <ListItemIcon>
+              <Logout fontSize="small" sx={{ color: 'error.main' }} />
+            </ListItemIcon>
+            <ListItemText primary="Sign Out" />
+          </MenuItem>
+        </Menu>
       </Box>
     </Box>
   );

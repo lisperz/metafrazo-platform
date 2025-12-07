@@ -7,7 +7,6 @@ import { Container, Typography, Box, Alert, Button, Grid } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useDashboardData } from './hooks/useDashboardData';
-import StatsCards from './components/StatsCards';
 import QuickActions from './components/QuickActions';
 import CreditUsage from './components/CreditUsage';
 import RecentJobs from './components/RecentJobs';
@@ -45,9 +44,6 @@ const DashboardPage: React.FC = () => {
           </Button>
         </Box>
       </Alert>
-
-      {/* Stats Cards */}
-      <StatsCards stats={stats} creditsBalance={user?.credits_balance || 0} />
 
       {/* Main Content Grid */}
       <Grid container spacing={4}>

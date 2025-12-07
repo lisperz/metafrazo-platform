@@ -66,6 +66,7 @@ export const getStatusColor = (
     case 'pending':
       return 'info';
     case 'cancelled':
+    case 'canceled':
       return 'default';
     default:
       return 'default';
