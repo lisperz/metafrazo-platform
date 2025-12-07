@@ -19,9 +19,6 @@ const DashboardPage: React.FC = () => {
     stats,
     recentJobs,
     refetchJobs,
-    statsError,
-    jobsError,
-    hasError,
   } = useDashboardData();
 
   return (
@@ -35,17 +32,6 @@ const DashboardPage: React.FC = () => {
           Welcome back, {user?.first_name || 'User'}! Here's your account overview.
         </Typography>
       </Box>
-
-      {/* Error Messages */}
-      {hasError && (
-        <Alert severity="warning" sx={{ mb: 4 }}>
-          <Typography>
-            Some dashboard data may not be available. API connection issues detected.
-          </Typography>
-          {statsError && <Typography variant="caption">Stats: {String(statsError)}</Typography>}
-          {jobsError && <Typography variant="caption">Jobs: {String(jobsError)}</Typography>}
-        </Alert>
-      )}
 
       {/* User Subscription Alert */}
       <Alert severity="info" sx={{ mb: 4 }}>

@@ -1,6 +1,5 @@
 import React from 'react';
-import { Container, Alert } from '@mui/material';
-import { useWebSocket } from '../../contexts/WebSocketContext';
+import { Container } from '@mui/material';
 import { useJobs } from './hooks/useJobs';
 import JobsHeader from './components/JobsHeader';
 import SearchAndFilters from './components/SearchAndFilters';
@@ -9,7 +8,6 @@ import JobsTable from './components/JobsTable';
 import JobActionsMenu from './components/JobActionsMenu';
 
 const JobsPage: React.FC = () => {
-  const { isConnected } = useWebSocket();
   const {
     jobsData,
     isLoading,
@@ -37,13 +35,6 @@ const JobsPage: React.FC = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <JobsHeader onRefresh={refetch} />
-
-      {!isConnected && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          Real-time updates are currently {isConnected ? 'connected' : 'disconnected'}. Job statuses may not reflect
-          the latest changes.
-        </Alert>
-      )}
 
       <SearchAndFilters
         searchTerm={searchTerm}

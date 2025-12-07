@@ -24,11 +24,8 @@ export interface JobData {
 }
 
 export function useDashboardData() {
-  // Get user stats
-  const {
-    data: stats,
-    error: statsError
-  } = useQuery<DashboardStats>({
+  // Get user stats (silently fail - stats are optional)
+  const { data: stats } = useQuery<DashboardStats>({
     queryKey: ['user-stats'],
     queryFn: usersApi.getUserStats,
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -36,12 +33,11 @@ export function useDashboardData() {
     enabled: true,
   });
 
-  // Get recent jobs
+  // Get recent jobs (silently fail - will show empty state)
   const {
-    data: recentJobs = [],
+    data: jobsResponse,
     refetch: refetchJobs,
-    error: jobsError
-  } = useQuery<JobData[]>({
+  } = useQuery<{ jobs: JobData[]; total: number }>({
     queryKey: ['recent-jobs'],
     queryFn: () => jobsApi.getUserJobs({ limit: 5 }),
     refetchInterval: 10000, // Refresh every 10 seconds
@@ -49,14 +45,12 @@ export function useDashboardData() {
     enabled: true,
   });
 
-  const hasError = Boolean(statsError || jobsError);
+  // Extract jobs array from response, default to empty array
+  const recentJobs: JobData[] = jobsResponse?.jobs ?? [];
 
   return {
     stats,
     recentJobs,
     refetchJobs,
-    statsError,
-    jobsError,
-    hasError,
   };
 }

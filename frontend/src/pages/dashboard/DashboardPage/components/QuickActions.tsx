@@ -3,8 +3,8 @@
  */
 
 import React from 'react';
-import { Card, CardContent, Typography, Box, Button } from '@mui/material';
-import { CloudUpload, VideoLibrary } from '@mui/icons-material';
+import { Card, CardContent, Typography, Box, Button, Chip } from '@mui/material';
+import { VideoSettings, Star, History } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 const QuickActions: React.FC = () => {
@@ -20,26 +20,49 @@ const QuickActions: React.FC = () => {
           <Button
             variant="contained"
             fullWidth
-            startIcon={<CloudUpload />}
-            onClick={() => navigate('/upload')}
+            startIcon={<VideoSettings />}
+            onClick={() => navigate('/editor')}
             size="large"
           >
-            Upload New Video
+            Video Editor
           </Button>
           <Button
             variant="outlined"
             fullWidth
-            startIcon={<VideoLibrary />}
-            onClick={() => navigate('/jobs')}
+            startIcon={<Star />}
+            onClick={() => navigate('/editor/pro')}
+            sx={{
+              borderColor: '#f59e0b',
+              color: '#d97706',
+              '&:hover': {
+                borderColor: '#d97706',
+                backgroundColor: 'rgba(245, 158, 11, 0.04)',
+              },
+            }}
           >
-            View All Jobs
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              Pro Video Editor
+              <Chip
+                label="PRO"
+                size="small"
+                sx={{
+                  height: 18,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: 'white',
+                  '& .MuiChip-label': { px: 0.75 },
+                }}
+              />
+            </Box>
           </Button>
           <Button
             variant="outlined"
             fullWidth
-            onClick={() => navigate('/settings')}
+            startIcon={<History />}
+            onClick={() => navigate('/history')}
           >
-            Account Settings
+            Translation History
           </Button>
         </Box>
       </CardContent>

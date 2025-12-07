@@ -15,6 +15,7 @@
 - ✅ **Auto-deploys from GitHub** - Push code = auto-deploy
 - ✅ **Public URL automatically** - Get https://your-app.up.railway.app
 - ✅ **Much simpler than AWS** - No IAM, security groups, VPCs, etc.
+- 
 
 ---
 

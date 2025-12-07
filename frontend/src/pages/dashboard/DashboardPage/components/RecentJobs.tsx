@@ -25,7 +25,6 @@ import {
   PlayArrow,
   Refresh,
   VideoLibrary,
-  CloudUpload,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { JobData } from '../hooks/useDashboardData';
@@ -72,7 +71,7 @@ const RecentJobs: React.FC<RecentJobsProps> = ({ jobs, onRefresh }) => {
             <Button
               variant="outlined"
               size="small"
-              onClick={() => navigate('/jobs')}
+              onClick={() => navigate('/history')}
               sx={{ ml: 1 }}
             >
               View All
@@ -87,14 +86,14 @@ const RecentJobs: React.FC<RecentJobsProps> = ({ jobs, onRefresh }) => {
               No videos processed yet
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              Upload your first video to get started with AI-powered text removal.
+              Start editing your first video with our AI-powered tools.
             </Typography>
             <Button
               variant="contained"
-              startIcon={<CloudUpload />}
-              onClick={() => navigate('/upload')}
+              startIcon={<PlayArrow />}
+              onClick={() => navigate('/editor')}
             >
-              Upload Video
+              Open Video Editor
             </Button>
           </Paper>
         ) : (

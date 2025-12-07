@@ -2,7 +2,7 @@ import React from 'react';
 import { TableRow, TableCell, Box, Typography, Chip, LinearProgress, IconButton, Tooltip } from '@mui/material';
 import { VideoLibrary, PlayArrow, Download, MoreVert } from '@mui/icons-material';
 import { Job } from '../types';
-import { formatFileSize, formatDuration, formatDateInChicagoTime, getStatusColor } from '../utils/formatters';
+import { formatFileSize, formatDateInChicagoTime, getStatusColor } from '../utils/formatters';
 
 interface JobTableRowProps {
   job: Job;
@@ -14,14 +14,22 @@ const JobTableRow: React.FC<JobTableRowProps> = ({ job, onMenuOpen }) => {
 
   return (
     <TableRow hover>
-      <TableCell>
+      <TableCell sx={{ minWidth: 280, maxWidth: 400 }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <VideoLibrary sx={{ mr: 2, color: 'grey.400' }} />
-          <Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Typography variant="subtitle2" noWrap sx={{ maxWidth: 200 }}>
-                {job.display_name || job.original_filename}
-              </Typography>
+          <VideoLibrary sx={{ mr: 2, color: 'grey.400', flexShrink: 0 }} />
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Tooltip title={job.display_name || job.original_filename} placement="top">
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    wordBreak: 'break-word',
+                    overflowWrap: 'break-word',
+                  }}
+                >
+                  {job.display_name || job.original_filename}
+                </Typography>
+              </Tooltip>
               {job.is_pro_job && (
                 <Chip
                   label="PRO"
@@ -32,6 +40,7 @@ const JobTableRow: React.FC<JobTableRowProps> = ({ job, onMenuOpen }) => {
                     fontWeight: 600,
                     background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                     color: 'white',
+                    flexShrink: 0,
                     '& .MuiChip-label': {
                       px: 1,
                     },
@@ -76,9 +85,6 @@ const JobTableRow: React.FC<JobTableRowProps> = ({ job, onMenuOpen }) => {
         <Typography variant="caption" color="text.secondary">
           {time}
         </Typography>
-      </TableCell>
-      <TableCell>
-        <Typography variant="body2">{job.duration ? formatDuration(job.duration) : '-'}</Typography>
       </TableCell>
       <TableCell align="right">
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

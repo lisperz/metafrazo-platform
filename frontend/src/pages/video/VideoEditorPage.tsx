@@ -145,11 +145,11 @@ const VideoEditorPage: React.FC = () => {
               <Box component="ol" sx={{ pl: 2, '& li': { mb: 1.5, color: '#4a5568' } }}>
                 <li>Upload your video file (MP4, AVI, MOV, etc.)</li>
                 <li>Our AI automatically detects and removes text from the video</li>
-                <li>Download your processed video with text removed</li>
+                <li>Optionally upload an audio file to perform AI lip-sync on your video</li>
+                <li>Download your processed video with text removed and lip-sync applied</li>
               </Box>
               <Typography variant="body2" sx={{ mt: 3, color: '#718096' }}>
-                <strong>Note:</strong> Processing may take several minutes depending on video length and complexity.
-                You can check the status in your Ghostcut dashboard as well.
+                Processing may take several minutes depending on video length and complexity.
               </Typography>
             </Card>
           </Container>

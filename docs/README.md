@@ -1,5 +1,7 @@
 # Documentation Index
 
+REDACTED_API_KEY
+
 **Video Text Inpainting Service** - Developer Documentation
 
 ---

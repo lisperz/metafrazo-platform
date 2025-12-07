@@ -15,7 +15,6 @@ import HomePage from './pages/dashboard/HomePage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import DashboardPage from './pages/dashboard/DashboardPage';
-import UploadPage from './pages/upload/UploadPage';
 import JobsPage from './pages/jobs/JobsPage';
 import SettingsPage from './pages/admin/SettingsPage';
 import AdminPage from './pages/admin/AdminPage';
@@ -163,13 +162,10 @@ const App: React.FC = () => {
             </ErrorBoundary>
           }
         />
-        <Route 
-          path="/upload" 
-          element={
-            <ProtectedRoute>
-              <UploadPage />
-            </ProtectedRoute>
-          } 
+        {/* Redirect /upload to /editor */}
+        <Route
+          path="/upload"
+          element={<Navigate to="/editor" replace />}
         />
         <Route 
           path="/jobs" 

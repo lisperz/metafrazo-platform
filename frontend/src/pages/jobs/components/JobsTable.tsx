@@ -42,7 +42,6 @@ const JobsTable: React.FC<JobsTableProps> = ({
               <TableCell>Progress</TableCell>
               <TableCell>Credits</TableCell>
               <TableCell>Created</TableCell>
-              <TableCell>Duration</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
