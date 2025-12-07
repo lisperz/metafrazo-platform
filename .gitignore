@@ -34,4 +34,4 @@ Thumbs.db
 
 # Large test files
 TestForMyself_Before/
-static/videos/
+static/videos/.claude/
