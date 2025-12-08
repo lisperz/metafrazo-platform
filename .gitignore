@@ -35,3 +35,13 @@ Thumbs.db
 # Large test files
 TestForMyself_Before/
 static/videos/.claude/
+
+# Claude Code configuration and development notes
+.claude/
+CLAUDE.md
+NEXT_SESSION_PROMPT.md
+DEVELOPMENT_GUIDELINES.md
+
+# IDE and editor configs
+.vscode/
+.idea/
