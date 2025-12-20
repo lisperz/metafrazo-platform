@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     upload_path: str = config("UPLOAD_PATH", default="/app/uploads")
     upload_temp_dir: str = config("UPLOAD_TEMP_DIR", default="./temp_uploads")
     api_base_url: str = config("API_BASE_URL", default="http://localhost:8000")
+    # Callback URL for Docker workers - use host.docker.internal to reach host from container
+    callback_base_url: str = config("CALLBACK_BASE_URL", default="")
     
     @property
     def cors_origins_list(self) -> List[str]:

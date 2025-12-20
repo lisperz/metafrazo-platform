@@ -153,6 +153,80 @@ export const cancelJob = async (
 };
 
 /**
+ * Audio upload response type
+ */
+export interface AudioUploadResponse {
+  ref_id: string;
+  url: string;
+  filename: string;
+  file_size: number;
+  message: string;
+}
+
+/**
+ * Upload a single audio file to S3 for embedded processing
+ */
+export const uploadAudioFile = async (
+  token: string,
+  file: File,
+  refId?: string
+): Promise<AudioUploadResponse> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const params: Record<string, string> = { token };
+  if (refId) {
+    params.ref_id = refId;
+  }
+
+  const baseURL = getEmbeddedApiBaseUrl();
+  const response = await axios.post<AudioUploadResponse>(
+    `${baseURL}/upload-audio`,
+    formData,
+    {
+      params,
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+/**
+ * Upload multiple audio files in batch
+ */
+export interface BatchUploadResponse {
+  uploaded: AudioUploadResponse[];
+  errors: { filename: string; error: string }[];
+  total_uploaded: number;
+  total_errors: number;
+}
+
+export const uploadAudioFilesBatch = async (
+  token: string,
+  files: File[]
+): Promise<BatchUploadResponse> => {
+  const formData = new FormData();
+  files.forEach(file => {
+    formData.append('files', file);
+  });
+
+  const baseURL = getEmbeddedApiBaseUrl();
+  const response = await axios.post<BatchUploadResponse>(
+    `${baseURL}/upload-audio-batch`,
+    formData,
+    {
+      params: { token },
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
+  return response.data;
+};
+
+/**
  * Parse token from URL query parameters
  */
 export const getTokenFromUrl = (): string | null => {

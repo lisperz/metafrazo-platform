@@ -109,7 +109,9 @@ async def generate_mock_token(request: MockTokenRequest):
     # Generate IDs if not provided
     user_id = request.user_id or f"mock-user-{uuid.uuid4().hex[:8]}"
     job_id = request.job_id or f"mock-job-{uuid.uuid4().hex[:8]}"
-    callback_url = request.callback_url or f"{settings.api_base_url}/api/v1/embedded/mock/callback"
+    # Use callback_base_url for Docker workers (host.docker.internal), fallback to api_base_url
+    callback_base = settings.callback_base_url or settings.api_base_url
+    callback_url = request.callback_url or f"{callback_base}/api/v1/embedded/mock/callback"
 
     # Calculate expiration
     now = datetime.utcnow()
@@ -629,7 +631,9 @@ async def redirect_to_editor(
     # Generate token
     user_id = user_id or f"mock-user-{uuid.uuid4().hex[:8]}"
     job_id = job_id or f"mock-job-{uuid.uuid4().hex[:8]}"
-    callback_url = f"{settings.api_base_url}/api/v1/embedded/mock/callback"
+    # Use callback_base_url for Docker workers (host.docker.internal), fallback to api_base_url
+    callback_base = settings.callback_base_url or settings.api_base_url
+    callback_url = f"{callback_base}/api/v1/embedded/mock/callback"
 
     now = datetime.utcnow()
     expires_at = now + timedelta(hours=1)

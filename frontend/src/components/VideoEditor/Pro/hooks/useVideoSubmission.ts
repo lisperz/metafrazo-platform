@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffectsStore } from '../../../../store/effectsStore';
 import { useSegmentsStore } from '../../../../store/segmentsStore';
 import { API_ENDPOINTS } from '../constants/editorConstants';
-import { processVideo, getJobStatus } from '../../../../services/embeddedApi';
+import { processVideo, getJobStatus, uploadAudioFile } from '../../../../services/embeddedApi';
 
 export interface UseVideoSubmissionReturn {
   /** Whether submission is in progress */
@@ -274,6 +274,7 @@ export const useVideoSubmission = (
     console.log('=== EMBEDDED MODE SUBMIT ===');
     console.log('Token:', embeddedToken ? 'present' : 'missing');
     console.log('Phraze Job ID:', phrazeJobId);
+    console.log('Segments:', segments);
 
     if (!embeddedToken) {
       alert('Authentication token missing. Please try again.');
@@ -284,16 +285,56 @@ export const useVideoSubmission = (
     setSubmissionProgress('Preparing embedded video for processing...');
 
     try {
-      // Build segments data for API
-      const segmentsData = segments.map(seg => ({
-        startTime: seg.startTime,
-        endTime: seg.endTime,
-        audioInput: {
-          refId: seg.audioInput.refId,
-          startTime: seg.audioInput.startTime,
-          endTime: seg.audioInput.endTime,
-        },
-      }));
+      // Step 1: Upload unique audio files to S3 and get URLs
+      setSubmissionProgress('Uploading audio files...');
+
+      // Collect unique audio files by refId
+      const uniqueAudioFiles = new Map<string, File>();
+      segments.forEach(seg => {
+        if (seg.audioInput.file && !uniqueAudioFiles.has(seg.audioInput.refId)) {
+          uniqueAudioFiles.set(seg.audioInput.refId, seg.audioInput.file);
+        }
+      });
+
+      console.log('Unique audio files to upload:', uniqueAudioFiles.size);
+
+      // Upload each audio file and build refId -> URL mapping
+      const audioUrlMap = new Map<string, string>();
+      const audioEntries = Array.from(uniqueAudioFiles.entries());
+
+      for (let i = 0; i < audioEntries.length; i++) {
+        const [refId, file] = audioEntries[i];
+        console.log(`Uploading audio: ${refId} (${file.name})`);
+        setSubmissionProgress(`Uploading audio: ${file.name}...`);
+
+        try {
+          const uploadResult = await uploadAudioFile(embeddedToken, file, refId);
+          audioUrlMap.set(refId, uploadResult.url);
+          console.log(`Uploaded ${refId}: ${uploadResult.url}`);
+        } catch (uploadError) {
+          console.error(`Failed to upload audio ${refId}:`, uploadError);
+          throw new Error(`Failed to upload audio file: ${file.name}`);
+        }
+      }
+
+      // Step 2: Build segments data with audio URLs
+      const segmentsData = segments.map(seg => {
+        const audioUrl = audioUrlMap.get(seg.audioInput.refId);
+        if (!audioUrl) {
+          throw new Error(`No audio URL for segment ${seg.id}`);
+        }
+
+        return {
+          startTime: seg.startTime,
+          endTime: seg.endTime,
+          audioInput: {
+            refId: seg.audioInput.refId,
+            url: audioUrl,
+            startTime: seg.audioInput.startTime,
+            endTime: seg.audioInput.endTime,
+          },
+        };
+      });
 
       console.log('Submitting to embedded API with segments:', segmentsData);
 
@@ -316,7 +357,7 @@ export const useVideoSubmission = (
       setIsSubmitting(false);
 
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`Error submitting video: ${errorMessage}`);
+      alert(`Processing failed: ${errorMessage}`);
     }
   }, [embeddedToken, phrazeJobId, segments, pollJobStatus]);
 

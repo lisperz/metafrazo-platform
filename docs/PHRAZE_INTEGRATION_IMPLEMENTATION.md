@@ -1,10 +1,11 @@
 # Phraze.so Integration - Implementation Guide
 
-This document describes the Phase 1 implementation of the phraze.so embedded editor integration.
+**Last Updated**: December 20, 2025
+**Status**: Phase 2 Complete - Ready for Production Deployment
 
 ## Overview
 
-The MetaFrazo editor can now be embedded in phraze.so as an iframe or redirected editor. Users are authenticated via JWT tokens issued by phraze.so, and job status updates are sent via callbacks.
+The MetaFrazo editor can be embedded in phraze.so as a redirected editor. Users are authenticated via JWT tokens issued by phraze.so, and job status updates are sent via callbacks.
 
 ## Architecture
 
@@ -16,8 +17,8 @@ The MetaFrazo editor can now be embedded in phraze.so as an iframe or redirected
                                                                │
                                                                ▼
                                                         ┌─────────────────┐
-                                                        │   GhostCut/     │
                                                         │   Sync.so       │
+                                                        │   (Lip-sync)    │
                                                         └─────────────────┘
                                                                │
                                                                ▼
@@ -27,129 +28,27 @@ The MetaFrazo editor can now be embedded in phraze.so as an iframe or redirected
                                                         └─────────────────┘
 ```
 
-## New Files Created
-
-### Backend
-
-| File | Description |
-|------|-------------|
-| `backend/auth/phraze/__init__.py` | Module exports |
-| `backend/auth/phraze/schemas.py` | Pydantic schemas for JWT and callbacks |
-| `backend/auth/phraze/validator.py` | RS256 JWT validation logic |
-| `backend/auth/phraze/callback_service.py` | Service for sending callbacks to phraze.so |
-| `backend/api/routes/embedded/__init__.py` | Router exports |
-| `backend/api/routes/embedded/routes.py` | Main embedded API endpoints |
-| `backend/api/routes/embedded/mock_routes.py` | Mock routes for testing |
-
-### Frontend
-
-| File | Description |
-|------|-------------|
-| `frontend/src/services/embeddedApi.ts` | API service for embedded endpoints |
-| `frontend/src/pages/embedded/EmbeddedEditorPage.tsx` | Embedded editor page |
-| `frontend/src/pages/embedded/index.ts` | Page exports |
-
-### Database
-
-| File | Description |
-|------|-------------|
-| `database/migrations/add_embedded_job_support.sql` | Migration for is_embedded_job column |
-
 ## API Endpoints
 
 ### Embedded Endpoints (`/api/v1/embedded/`)
 
-#### `GET /validate`
-Validates JWT token from phraze.so.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/validate` | GET | Validates JWT token from phraze.so |
+| `/process` | POST | Starts video processing |
+| `/status/{job_id}` | GET | Gets job status |
+| `/cancel/{job_id}` | POST | Cancels a job |
+| `/upload-audio` | POST | Uploads audio file to S3 |
+| `/upload-audio-batch` | POST | Uploads multiple audio files |
 
-**Query Parameters:**
-- `token` (required): JWT token from phraze.so
+### Mock Endpoints (`/api/v1/embedded/mock/`) - Development Only
 
-**Response:**
-```json
-{
-  "valid": true,
-  "user_id": "phraze-user-123",
-  "job_id": "phraze-job-456",
-  "video_url": "https://s3.amazonaws.com/...",
-  "callback_url": "https://phraze.so/api/editor/callback",
-  "message": "Access granted"
-}
-```
-
-#### `POST /process`
-Starts video processing.
-
-**Query Parameters:**
-- `token` (required): JWT token
-
-**Request Body:**
-```json
-{
-  "processing_type": "text_removal",
-  "target_language": null,
-  "audio_url": null,
-  "segments": null
-}
-```
-
-**Response:**
-```json
-{
-  "job_id": "internal-uuid",
-  "phraze_job_id": "phraze-job-456",
-  "status": "processing",
-  "message": "Video processing started"
-}
-```
-
-#### `GET /status/{job_id}`
-Gets job status.
-
-**Query Parameters:**
-- `token` (required): JWT token
-
-**Response:**
-```json
-{
-  "job_id": "internal-uuid",
-  "phraze_job_id": "phraze-job-456",
-  "status": "processing",
-  "progress": 45,
-  "message": "Text removal processing...",
-  "output_url": null,
-  "error_message": null
-}
-```
-
-#### `POST /cancel/{job_id}`
-Cancels a job.
-
-### Mock Endpoints (`/api/v1/embedded/mock/`)
-
-Only available in development mode.
-
-#### `POST /generate-token`
-Generates mock JWT tokens for testing.
-
-**Request Body:**
-```json
-{
-  "video_url": "https://s3.amazonaws.com/bucket/video.mp4",
-  "user_id": null,
-  "job_id": null,
-  "expires_in_hours": 1
-}
-```
-
-#### `GET /test-page`
-Serves HTML test page for generating tokens and testing the flow.
-
-#### `GET /redirect-to-editor`
-Simulates phraze.so redirect with generated token.
-
-#### `POST /callback`
-Mock callback endpoint that logs received callbacks.
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/generate-token` | POST | Generates mock JWT tokens for testing |
+| `/test-page` | GET | HTML test page for integration testing |
+| `/callback` | POST | Mock callback endpoint |
+| `/callbacks` | GET | Get received callbacks |
 
 ## JWT Token Structure
 
@@ -168,20 +67,16 @@ Mock callback endpoint that logs received callbacks.
 
 ### Subscription Tiers
 
-| Tier | Editor Type | Description |
-|------|-------------|-------------|
+| Tier | Editor Type | Features |
+|------|-------------|----------|
 | `free` | Basic Editor | Basic text removal only |
-| `normal` | Basic Editor | Basic text removal + lip-sync |
+| `normal` | Basic Editor | Basic text removal + single-audio lip-sync |
 | `pro` | Pro Editor | Segment-based lip-sync + text removal |
 | `enterprise` | Pro Editor | Full features + priority processing |
 
-The `subscription_tier` field determines which editor the user sees:
-- **Basic Editor** (`GhostCutVideoEditor`): For `free` and `normal` tiers
-- **Pro Editor** (`ProVideoEditor`): For `pro` and `enterprise` tiers
+## Callback System
 
-## Callback Payload
-
-Sent to phraze.so when job status changes:
+### Callback Payload
 
 ```json
 {
@@ -194,7 +89,7 @@ Sent to phraze.so when job status changes:
   "metadata": {
     "internal_job_id": "metafrazo-uuid"
   },
-  "timestamp": "2024-12-19T12:00:00Z",
+  "timestamp": "2025-12-20T12:00:00Z",
   "signature": "hmac-sha256-signature"
 }
 ```
@@ -204,47 +99,15 @@ Sent to phraze.so when job status changes:
 - `completed`: Job completed successfully
 - `failed`: Job failed with error
 
-## Configuration
+### Callback URL Handling
 
-Add these environment variables for production:
+The system uses `CALLBACK_BASE_URL` for Docker workers to reach the host/production server:
+- **Local development**: `http://host.docker.internal:8000`
+- **Production (Railway)**: `https://backend-production-268a.up.railway.app`
 
-```bash
-# Embedded Mode
-EMBEDDED_MODE=true
-PHRAZE_DOMAIN=phraze.so
-PHRAZE_CALLBACK_URL=https://phraze.so/api/editor/callback
-PHRAZE_PUBLIC_KEY=<RS256 public key from phraze.so>
-CALLBACK_HMAC_SECRET=<shared secret for callback signatures>
-ALLOWED_S3_DOMAINS=s3.amazonaws.com,s3.us-east-2.amazonaws.com
-```
+The callback service automatically normalizes URLs based on the environment.
 
-## Testing
-
-1. Start the backend and frontend in development mode
-2. Navigate to `http://localhost:8000/api/v1/embedded/mock/test-page`
-3. Enter a video S3 URL and click "Generate Token & Open Editor"
-4. The editor will open with the video pre-loaded
-5. Click "Submit" to process the video
-6. Callbacks will be logged in the console
-
-## Frontend Routes
-
-| Route | Component | Description |
-|-------|-----------|-------------|
-| `/editor/embedded` | `EmbeddedEditorPage` | Embedded editor entry point |
-
-The embedded editor:
-- Reads JWT token from `?token=` query parameter
-- Validates token with backend
-- Loads video from S3 URL in token
-- Skips file upload UI
-- Uses embedded API for processing
-- Polls for job completion
-- Sends callbacks to phraze.so
-
-## Error Handling
-
-Error codes returned to phraze.so:
+## Error Codes
 
 | Code | Description |
 |------|-------------|
@@ -253,20 +116,158 @@ Error codes returned to phraze.so:
 | `TOKEN_INVALID` | JWT signature verification failed |
 | `TOKEN_MALFORMED` | JWT payload missing required fields |
 | `INVALID_VIDEO_URL` | Video URL not from allowed S3 domain |
-| `VALIDATION_ERROR` | General validation error |
-| `PROCESSING_ERROR` | Failed to start processing |
-| `VIDEO_DOWNLOAD_FAILED` | Could not download video from S3 |
 | `PROCESSING_FAILED` | Video processing failed |
 | `SYNC_API_ERROR` | Sync.so API error |
-| `GHOSTCUT_API_ERROR` | GhostCut API error |
 | `S3_UPLOAD_FAILED` | Failed to upload output |
 | `TIMEOUT` | Processing timed out |
 | `USER_CANCELLED` | User cancelled the job |
 
-## Next Steps (Phase 2+)
+---
 
-1. Add Phraze theme styling (#0A47F2 blue)
-2. Add simplified audio upload for embedded lip-sync
-3. Add real-time progress updates via WebSocket
-4. Add more granular error handling
-5. Production deployment to editor.phraze.so subdomain
+## Production Deployment Steps
+
+### Step 1: Railway Environment Variables
+
+Add these environment variables to Railway backend service:
+
+```bash
+# Embedded Mode Configuration
+EMBEDDED_MODE=true
+PHRAZE_DOMAIN=phraze.so
+PHRAZE_PUBLIC_KEY=<RS256 public key from phraze.so - coordinate with Phraze team>
+PHRAZE_CALLBACK_URL=https://api.phraze.so/editor/callback
+CALLBACK_HMAC_SECRET=<shared secret - coordinate with Phraze team>
+CALLBACK_BASE_URL=https://backend-production-268a.up.railway.app
+ALLOWED_S3_DOMAINS=s3.amazonaws.com,s3.us-east-2.amazonaws.com
+
+# Update CORS for phraze.so domains
+CORS_ORIGINS=https://editor.phraze.so,https://phraze.so,https://frontend-production-b02b.up.railway.app
+```
+
+### Step 2: Railway Frontend Environment Variables
+
+```bash
+REACT_APP_API_URL=https://backend-production-268a.up.railway.app/api/v1
+```
+
+### Step 3: Domain Setup
+
+1. **Create subdomain**: Set up `editor.phraze.so` DNS record pointing to Railway frontend
+2. **Update Railway**: Configure custom domain in Railway frontend service
+3. **Update FRONTEND_URL**: Set `FRONTEND_URL=https://editor.phraze.so` in backend
+
+### Step 4: Phraze.so Team Coordination
+
+Provide to Phraze.so team:
+- Editor URL: `https://editor.phraze.so/editor/embedded?token={jwt_token}`
+- Callback endpoint: They need to provide their callback URL
+- JWT public key: They need to provide RS256 public key for token verification
+- HMAC secret: Agree on shared secret for callback signature verification
+
+Receive from Phraze.so team:
+- `PHRAZE_PUBLIC_KEY`: RS256 public key for JWT verification
+- `PHRAZE_CALLBACK_URL`: Their callback endpoint URL
+- `CALLBACK_HMAC_SECRET`: Shared secret for HMAC signatures
+
+### Step 5: Deploy and Test
+
+```bash
+# Deploy backend
+cd backend
+railway up --service backend --detach
+
+# Deploy frontend
+cd frontend
+railway up --service frontend --detach
+
+# Check logs
+railway logs --service backend
+railway logs --service frontend
+```
+
+### Step 6: End-to-End Testing
+
+1. Have Phraze.so team generate a real JWT token
+2. Navigate to `https://editor.phraze.so/editor/embedded?token={token}`
+3. Create segments with audio files
+4. Submit for processing
+5. Verify callbacks received by Phraze.so
+
+---
+
+## Local Development Testing
+
+### Prerequisites
+- Docker running (for Celery workers)
+- PostgreSQL and Redis running (via docker-compose)
+
+### Steps
+
+1. Start Docker services:
+   ```bash
+   docker-compose up -d
+   ```
+
+2. Start backend:
+   ```bash
+   bash scripts/start-backend.sh
+   ```
+
+3. Start frontend:
+   ```bash
+   bash scripts/start-frontend.sh
+   ```
+
+4. Open test page:
+   ```
+   http://localhost:8000/api/v1/embedded/mock/test-page
+   ```
+
+5. Generate token with "pro" subscription tier
+
+6. Click "Open Editor" and test the full flow
+
+7. Verify both "started" and "completed" callbacks appear in callback log
+
+---
+
+## Key Files Reference
+
+### Backend
+| File | Description |
+|------|-------------|
+| `backend/config.py` | Configuration including `CALLBACK_BASE_URL` |
+| `backend/auth/phraze/` | JWT validation and callback service |
+| `backend/api/routes/embedded/` | Embedded API routes |
+| `backend/workers/embedded_tasks.py` | Celery tasks for polling and callbacks |
+| `backend/services/embedded_processing.py` | Sync.so API integration |
+
+### Frontend
+| File | Description |
+|------|-------------|
+| `frontend/src/pages/embedded/` | Embedded editor page |
+| `frontend/src/services/embeddedApi.ts` | API service for embedded endpoints |
+| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission and polling |
+
+---
+
+## Troubleshooting
+
+### Callbacks not received
+- Check `CALLBACK_BASE_URL` is correctly set
+- For local dev: Use `http://host.docker.internal:8000`
+- For production: Use actual backend URL
+
+### "started" callback missing but "completed" works
+- The callback service normalizes `host.docker.internal` to `localhost` when running on host
+- Ensure `_normalize_callback_url()` function is present in callback_service.py
+
+### JWT validation failing
+- Check `PHRAZE_PUBLIC_KEY` is correctly set
+- Ensure token hasn't expired
+- Verify token is RS256 signed
+
+### Sync.so processing failing
+- Check `SYNC_API_KEY` is valid
+- Verify video URL is accessible
+- Check audio files were uploaded successfully

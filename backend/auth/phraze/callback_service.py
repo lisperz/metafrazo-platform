@@ -4,6 +4,7 @@ Callback service for notifying phraze.so of job status changes
 
 import logging
 import httpx
+import socket
 from datetime import datetime
 from typing import Optional
 
@@ -16,6 +17,29 @@ logger = logging.getLogger(__name__)
 # Retry configuration
 MAX_RETRIES = 3
 RETRY_DELAYS = [1, 5, 15]  # Exponential backoff in seconds
+
+
+def _normalize_callback_url(url: str) -> str:
+    """
+    Normalize callback URL for the current environment.
+
+    When running on the host (not in Docker), convert host.docker.internal
+    back to localhost, since host.docker.internal is only resolvable from
+    inside Docker containers.
+    """
+    if "host.docker.internal" not in url:
+        return url
+
+    # Check if we're running inside Docker by trying to resolve host.docker.internal
+    try:
+        socket.gethostbyname("host.docker.internal")
+        # If successful, we're inside Docker - keep the URL as is
+        return url
+    except socket.gaierror:
+        # Cannot resolve - we're on the host, convert to localhost
+        normalized = url.replace("host.docker.internal", "localhost")
+        logger.debug(f"Normalized callback URL: {url} -> {normalized}")
+        return normalized
 
 
 class PhrazeCallbackService:
@@ -54,7 +78,9 @@ class PhrazeCallbackService:
         payload_dict["signature"] = signature
 
         # Use configured callback URL if none provided
-        target_url = callback_url or settings.phraze_callback_url
+        raw_url = callback_url or settings.phraze_callback_url
+        # Normalize URL for the current environment (host vs Docker)
+        target_url = _normalize_callback_url(raw_url)
 
         logger.info(f"Sending callback to {target_url} for job {job_id} with status {status}")
 

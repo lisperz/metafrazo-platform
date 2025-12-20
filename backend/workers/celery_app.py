@@ -87,6 +87,10 @@ app.conf.update(
         'check-pro-job-completion': {
             'task': 'backend.workers.video_tasks.core_tasks.check_pro_job_completion',
             'schedule': 60.0,  # Check every minute for Pro job completion
+        },
+        'check-embedded-job-completion': {
+            'task': 'backend.workers.embedded_tasks.check_embedded_job_completion',
+            'schedule': 30.0,  # Check every 30 seconds for embedded job completion
         }
     }
 )
@@ -110,6 +114,7 @@ def task_failure_handler(sender=None, task_id=None, exception=None, einfo=None, 
 # Import tasks to register them
 from backend.workers import video_tasks
 from backend.workers import ghostcut_tasks
+from backend.workers import embedded_tasks
 
 if __name__ == '__main__':
     app.start()
