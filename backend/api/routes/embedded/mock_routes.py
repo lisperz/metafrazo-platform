@@ -71,6 +71,7 @@ class MockTokenRequest(BaseModel):
     subscription_tier: str = "normal"  # free, normal, pro, enterprise
     expires_in_hours: int = 1
     frontend_url: Optional[str] = None  # Override frontend URL for Railway testing
+    backend_url: Optional[str] = None  # Override backend URL for token validation
 
 
 class MockTokenResponse(BaseModel):
@@ -132,6 +133,10 @@ async def generate_mock_token(request: MockTokenRequest):
     # Generate editor URL - use provided frontend_url or fall back to settings
     base_frontend_url = request.frontend_url or settings.frontend_url
     editor_url = f"{base_frontend_url}/editor/embedded?token={token}"
+
+    # Add backend_url parameter if provided (for testing Railway frontend with local backend)
+    if request.backend_url:
+        editor_url += f"&backend_url={request.backend_url}"
 
     logger.info(f"Generated mock token for user {user_id}, job {job_id}, tier {subscription_tier}")
 
@@ -402,6 +407,14 @@ async def mock_test_page():
                     <small style="color: #666; font-size: 12px;">Leave empty for default (localhost:80). Use your Railway URL to test deployed frontend.</small>
                 </div>
 
+                <div class="form-group">
+                    <label for="backendUrl">Backend URL (for token validation)</label>
+                    <input type="url" id="backendUrl"
+                           placeholder="http://localhost:8000"
+                           value="">
+                    <small style="color: #666; font-size: 12px;">Leave empty for default. Use your local backend URL (http://localhost:8000) when testing Railway frontend with local backend.</small>
+                </div>
+
                 <button type="submit" class="btn" id="generateBtn">
                     Generate Token & Open Editor
                 </button>
@@ -469,7 +482,8 @@ async def mock_test_page():
                             job_id: document.getElementById('jobId').value || null,
                             subscription_tier: document.getElementById('subscriptionTier').value,
                             expires_in_hours: parseInt(document.getElementById('expiresIn').value),
-                            frontend_url: document.getElementById('frontendUrl').value || null
+                            frontend_url: document.getElementById('frontendUrl').value || null,
+                            backend_url: document.getElementById('backendUrl').value || null
                         })
                     });
 
