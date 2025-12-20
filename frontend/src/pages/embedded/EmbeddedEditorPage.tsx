@@ -36,74 +36,74 @@ const EmbeddedEditorPage: React.FC = () => {
   const token = getTokenFromUrl();
 
   const validateAndLoad = useCallback(async () => {
+    console.log('[EmbeddedEditor] Starting validation, token:', token ? 'present' : 'missing');
+
     if (!token) {
       setError({
         code: 'TOKEN_MISSING',
-        message: 'No authentication token provided. Redirecting to Phraze...',
+        message: 'No authentication token provided in URL. Please access this page with a valid token parameter.',
       });
       setLoadingState('error');
-      setTimeout(() => redirectToPhraze('missing_token'), 3000);
+      // Don't auto-redirect - let user see the error
       return;
     }
 
     try {
       setLoadingState('validating');
+      console.log('[EmbeddedEditor] Calling validateAccess...');
 
       // Validate token with backend
       const validation = await validateAccess(token);
+      console.log('[EmbeddedEditor] Validation response:', validation);
 
       if (!validation.valid) {
         setError({
           code: 'VALIDATION_FAILED',
-          message: 'Access validation failed. Please try again from Phraze.',
+          message: 'Access validation failed. The token may be invalid or expired.',
         });
         setLoadingState('error');
-        setTimeout(() => redirectToPhraze('validation_failed'), 3000);
+        // Don't auto-redirect - let user see the error
         return;
       }
 
       setTokenData(validation);
       setLoadingState('loading_video');
 
-      // Pre-check video URL accessibility
+      // Pre-check video URL accessibility (skip CORS issues)
       if (validation.video_url) {
-        try {
-          const response = await fetch(validation.video_url, { method: 'HEAD' });
-          if (!response.ok) {
-            throw new Error('Video not accessible');
-          }
-        } catch {
-          console.warn('Video HEAD check failed, proceeding anyway');
-        }
+        console.log('[EmbeddedEditor] Video URL:', validation.video_url);
       }
 
       setVideoReady(true);
       setLoadingState('ready');
+      console.log('[EmbeddedEditor] Ready to show editor');
 
     } catch (err: any) {
-      console.error('Validation error:', err);
+      console.error('[EmbeddedEditor] Validation error:', err);
 
       // Extract error info from response
       const errorDetail = err.response?.data?.detail;
+      let errorMessage = 'Failed to connect to the server.';
+      let errorCode = 'CONNECTION_ERROR';
+
       if (errorDetail && typeof errorDetail === 'object') {
-        setError({
-          code: errorDetail.error_code || 'UNKNOWN_ERROR',
-          message: errorDetail.message || 'An error occurred',
-          redirectUrl: errorDetail.redirect_url,
-        });
-      } else {
-        setError({
-          code: 'CONNECTION_ERROR',
-          message: 'Failed to connect to the server. Please try again.',
-        });
+        errorCode = errorDetail.error_code || 'UNKNOWN_ERROR';
+        errorMessage = errorDetail.message || 'An error occurred';
+      } else if (err.message) {
+        errorMessage = err.message;
+        if (err.message.includes('Network Error')) {
+          errorMessage = 'Network error - cannot reach backend server. Check CORS settings or backend URL.';
+        }
       }
+
+      setError({
+        code: errorCode,
+        message: errorMessage,
+        redirectUrl: errorDetail?.redirect_url,
+      });
 
       setLoadingState('error');
-
-      // Auto-redirect after delay for certain errors
-      if (errorDetail?.error_code === 'TOKEN_EXPIRED') {
-        setTimeout(() => redirectToPhraze('session_expired'), 3000);
-      }
+      // Don't auto-redirect - let user see and debug the error
     }
   }, [token]);
 
