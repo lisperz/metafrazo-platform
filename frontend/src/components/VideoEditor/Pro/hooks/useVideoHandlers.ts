@@ -97,35 +97,82 @@ export const useVideoHandlers = (
 
   // Generate video thumbnails
   const generateThumbnails = async () => {
+    console.log('Starting thumbnail generation for:', videoUrl);
     const video = document.createElement('video');
     video.src = videoUrl;
     video.crossOrigin = 'anonymous';
 
-    await new Promise((resolve) => {
-      video.onloadedmetadata = resolve;
-    });
+    try {
+      // Wait for metadata with timeout
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Video metadata load timeout'));
+        }, 15000);
 
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+        video.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
 
-    const frameCount = 30; // Number of thumbnails to generate
-    const interval = video.duration / frameCount;
-    const thumbs: string[] = [];
-
-    for (let i = 0; i < frameCount; i++) {
-      video.currentTime = i * interval;
-      await new Promise((resolve) => {
-        video.onseeked = resolve;
+        video.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error('Failed to load video'));
+        };
       });
 
-      canvas.width = 120;
-      canvas.height = 68;
-      ctx.drawImage(video, 0, 0, 120, 68);
-      thumbs.push(canvas.toDataURL('image/jpeg', 0.7));
-    }
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get canvas context');
+        return;
+      }
 
-    setThumbnails(thumbs);
+      const frameCount = 30; // Number of thumbnails to generate
+      const interval = video.duration / frameCount;
+      const thumbs: string[] = [];
+
+      for (let i = 0; i < frameCount; i++) {
+        video.currentTime = i * interval;
+
+        // Wait for seek with timeout
+        await new Promise<void>((resolve) => {
+          const timeout = setTimeout(() => {
+            resolve(); // Continue even if seek times out
+          }, 3000);
+
+          video.onseeked = () => {
+            clearTimeout(timeout);
+            resolve();
+          };
+        });
+
+        try {
+          canvas.width = 120;
+          canvas.height = 68;
+          ctx.drawImage(video, 0, 0, 120, 68);
+          thumbs.push(canvas.toDataURL('image/jpeg', 0.7));
+        } catch (e) {
+          // CORS error - can't extract frame data
+          console.warn(`Failed to extract frame ${i} due to CORS restrictions`);
+          thumbs.push(''); // Use empty string as placeholder
+        }
+      }
+
+      // Only set thumbnails if we got at least some valid ones
+      const validThumbs = thumbs.filter(t => t && t.length > 0);
+      if (validThumbs.length > 0) {
+        setThumbnails(thumbs);
+        console.log(`Generated ${validThumbs.length} valid thumbnails`);
+      } else {
+        console.warn('No valid thumbnails generated - S3 bucket may need CORS configuration');
+      }
+    } catch (error) {
+      console.error('Error generating thumbnails:', error);
+    } finally {
+      // Cleanup
+      video.src = '';
+      video.load();
+    }
   };
 
   // Generate thumbnails when video is ready

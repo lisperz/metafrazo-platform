@@ -90,4 +90,4 @@ class ErrorResponse(BaseModel):
     message: str
     redirect_url: Optional[str] = None
     job_id: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())

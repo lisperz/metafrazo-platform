@@ -24,4 +24,6 @@ export { useTimelineInteraction } from './useTimelineInteraction';
 export { useVideoBounds } from './useVideoBounds';
 export { useVideoPlayer } from './useVideoPlayer';
 export { useVideoSubmission } from './useVideoSubmission';
+export type { VideoSubmissionOptions, UseVideoSubmissionReturn } from './useVideoSubmission';
 export { useVideoThumbnails } from './useVideoThumbnails';
+export type { UseVideoThumbnailsReturn } from './useVideoThumbnails';

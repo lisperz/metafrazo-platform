@@ -19,6 +19,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# In-memory storage for callbacks (for testing only)
+# In production, phraze.so would have its own storage
+CALLBACK_STORAGE: list[dict] = []
+MAX_STORED_CALLBACKS = 50
+
 
 # For testing, we'll use a test RSA key pair (PKCS#8 format)
 # In production, phraze.so would have the private key and we'd only have the public key
@@ -176,7 +181,7 @@ async def get_public_key():
 async def mock_callback(payload: dict):
     """
     Mock callback endpoint that simulates phraze.so receiving job status updates.
-    Logs the callback for testing purposes.
+    Logs the callback and stores it for testing purposes.
     """
     if settings.environment == "production":
         raise HTTPException(
@@ -186,11 +191,40 @@ async def mock_callback(payload: dict):
 
     logger.info(f"Mock callback received: {payload}")
 
+    # Store callback with timestamp for display in test page
+    callback_entry = {
+        "received_at": datetime.utcnow().isoformat(),
+        **payload
+    }
+    CALLBACK_STORAGE.insert(0, callback_entry)
+
+    # Keep only recent callbacks
+    while len(CALLBACK_STORAGE) > MAX_STORED_CALLBACKS:
+        CALLBACK_STORAGE.pop()
+
     return {
         "received": True,
         "job_id": payload.get("job_id"),
         "status": payload.get("status"),
         "message": "Callback received successfully (mock)"
+    }
+
+
+@router.get("/callbacks")
+async def get_callbacks(limit: int = Query(20, ge=1, le=50)):
+    """
+    Get recent callbacks received by the mock endpoint.
+    For testing purposes only.
+    """
+    if settings.environment == "production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not available in production"
+        )
+
+    return {
+        "callbacks": CALLBACK_STORAGE[:limit],
+        "total": len(CALLBACK_STORAGE)
     }
 
 
@@ -524,10 +558,50 @@ async def mock_test_page():
                 }
             });
 
-            // Poll for callbacks (in a real scenario, this would be WebSocket or SSE)
-            setInterval(async () => {
-                // This is just for demonstration - in production you'd use proper real-time updates
-            }, 5000);
+            // Poll for callbacks
+            let lastCallbackCount = 0;
+
+            async function pollCallbacks() {
+                try {
+                    const response = await fetch(`${API_BASE}/api/v1/embedded/mock/callbacks`);
+                    if (!response.ok) return;
+
+                    const data = await response.json();
+                    if (data.callbacks && data.callbacks.length > 0) {
+                        const callbackLog = document.getElementById('callbackLog');
+                        callbackLog.innerHTML = data.callbacks.map(cb => {
+                            const statusClass = cb.status ? `status-${cb.status}` : '';
+                            const time = new Date(cb.received_at).toLocaleTimeString();
+                            return `
+                                <div class="callback-entry">
+                                    <strong class="${statusClass}">[${cb.status || 'unknown'}]</strong>
+                                    <span style="color: #666;">${time}</span>
+                                    <div style="font-size: 11px; color: #888; margin-top: 4px;">
+                                        Job: ${cb.job_id || 'N/A'}
+                                        ${cb.output_url ? '<br>Output: ' + cb.output_url.substring(0, 60) + '...' : ''}
+                                        ${cb.error_message ? '<br>Error: ' + cb.error_message : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+
+                        // Flash callback section if new callbacks received
+                        if (data.total > lastCallbackCount && lastCallbackCount > 0) {
+                            document.getElementById('callbacks').style.backgroundColor = '#d4edda';
+                            setTimeout(() => {
+                                document.getElementById('callbacks').style.backgroundColor = '#fff3cd';
+                            }, 500);
+                        }
+                        lastCallbackCount = data.total;
+                    }
+                } catch (error) {
+                    console.error('Error polling callbacks:', error);
+                }
+            }
+
+            // Poll every 2 seconds
+            setInterval(pollCallbacks, 2000);
+            pollCallbacks(); // Initial poll
         </script>
     </body>
     </html>

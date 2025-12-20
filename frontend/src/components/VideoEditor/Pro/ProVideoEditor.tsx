@@ -54,8 +54,14 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   const [isDraggingTimeline, setIsDraggingTimeline] = useState(false);
   const [timelineEffects, setTimelineEffects] = useState<TimelineEffect[]>([]);
 
-  // Submission hook
-  const { isSubmitting, submissionProgress, handleSubmit } = useVideoSubmission(videoFile);
+  // Submission hook - pass embedded mode options
+  const { isSubmitting, submissionProgress, handleSubmit } = useVideoSubmission({
+    videoFile,
+    videoUrl,
+    embeddedMode,
+    embeddedToken,
+    phrazeJobId,
+  });
 
   // Get segments store with undo/redo
   const {

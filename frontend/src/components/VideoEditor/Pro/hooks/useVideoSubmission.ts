@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffectsStore } from '../../../../store/effectsStore';
 import { useSegmentsStore } from '../../../../store/segmentsStore';
 import { API_ENDPOINTS } from '../constants/editorConstants';
+import { processVideo, getJobStatus } from '../../../../services/embeddedApi';
 
 export interface UseVideoSubmissionReturn {
   /** Whether submission is in progress */
@@ -20,21 +21,36 @@ export interface UseVideoSubmissionReturn {
   handleSubmit: () => Promise<void>;
 }
 
+export interface VideoSubmissionOptions {
+  videoFile: File | null;
+  videoUrl?: string;
+  embeddedMode?: boolean;
+  embeddedToken?: string;
+  phrazeJobId?: string;
+}
+
 /**
  * Custom hook for handling Pro video submission
  *
- * @param videoFile - The video file to submit
+ * @param options - Video submission options including file, URL, and embedded mode settings
  * @returns Submission state and handler
  */
 export const useVideoSubmission = (
-  videoFile: File | null
+  options: VideoSubmissionOptions | File | null
 ): UseVideoSubmissionReturn => {
+  // Handle both old signature (File | null) and new options object
+  const normalizedOptions: VideoSubmissionOptions =
+    options === null || options instanceof File
+      ? { videoFile: options }
+      : options;
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState('');
 
   const { effects } = useEffectsStore();
   const { segments } = useSegmentsStore();
+
+  const { videoFile, videoUrl, embeddedMode, embeddedToken, phrazeJobId } = normalizedOptions;
 
   /**
    * Handles Pro video submission
@@ -45,16 +61,32 @@ export const useVideoSubmission = (
     console.log('Segments data:', segments);
     console.log('Effects count:', effects.length);
     console.log('Video file:', videoFile);
+    console.log('Video URL:', videoUrl);
+    console.log('Embedded mode:', embeddedMode);
 
-    if (!videoFile) {
-      console.error('No video file available for submission');
-      alert('Please upload a video file');
+    // In embedded mode, we have videoUrl instead of videoFile
+    if (!videoFile && !videoUrl) {
+      console.error('No video file or URL available for submission');
+      alert('No video available for processing');
       return;
     }
 
     if (segments.length === 0) {
       console.error('No segments configured - segments array is empty!');
       alert('Please add at least one segment for Pro video processing');
+      return;
+    }
+
+    // Handle embedded mode submission via phraze.so API
+    if (embeddedMode && embeddedToken) {
+      await handleEmbeddedSubmit();
+      return;
+    }
+
+    // For non-embedded mode, videoFile is required
+    if (!videoFile) {
+      console.error('No video file available for non-embedded submission');
+      alert('No video file available for processing');
       return;
     }
 
@@ -181,7 +213,112 @@ export const useVideoSubmission = (
       setIsSubmitting(false);
       alert('Error submitting video. Please try again.');
     }
-  }, [videoFile, segments, effects, navigate]);
+  }, [videoFile, videoUrl, embeddedMode, embeddedToken, segments, effects, navigate]);
+
+  /**
+   * Poll for job status until completion or failure
+   */
+  const pollJobStatus = useCallback(async (jobId: string, token: string): Promise<void> => {
+    const MAX_POLLS = 120; // 10 minutes at 5 second intervals
+    const POLL_INTERVAL = 5000; // 5 seconds
+
+    for (let i = 0; i < MAX_POLLS; i++) {
+      try {
+        const status = await getJobStatus(jobId, token);
+        console.log(`Job status poll ${i + 1}:`, status);
+
+        if (status.status === 'completed') {
+          setSubmissionProgress('Processing completed successfully!');
+          setIsSubmitting(false);
+
+          // Show success message with output URL
+          if (status.output_url) {
+            alert(`Processing completed!\n\nOutput video: ${status.output_url}`);
+          } else {
+            alert('Processing completed successfully!');
+          }
+          return;
+        }
+
+        if (status.status === 'failed') {
+          setSubmissionProgress('');
+          setIsSubmitting(false);
+          alert(`Processing failed: ${status.error_message || 'Unknown error'}`);
+          return;
+        }
+
+        // Update progress message
+        const progressMsg = status.message || `Processing... ${status.progress || 0}%`;
+        setSubmissionProgress(progressMsg);
+
+        // Wait before next poll
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+
+      } catch (error) {
+        console.error('Error polling job status:', error);
+        // Continue polling despite errors
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL));
+      }
+    }
+
+    // Timeout after max polls
+    setSubmissionProgress('');
+    setIsSubmitting(false);
+    alert('Processing is taking longer than expected. Check the jobs page for status.');
+  }, []);
+
+  /**
+   * Handles embedded mode submission via phraze.so API
+   */
+  const handleEmbeddedSubmit = useCallback(async () => {
+    console.log('=== EMBEDDED MODE SUBMIT ===');
+    console.log('Token:', embeddedToken ? 'present' : 'missing');
+    console.log('Phraze Job ID:', phrazeJobId);
+
+    if (!embeddedToken) {
+      alert('Authentication token missing. Please try again.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmissionProgress('Preparing embedded video for processing...');
+
+    try {
+      // Build segments data for API
+      const segmentsData = segments.map(seg => ({
+        startTime: seg.startTime,
+        endTime: seg.endTime,
+        audioInput: {
+          refId: seg.audioInput.refId,
+          startTime: seg.audioInput.startTime,
+          endTime: seg.audioInput.endTime,
+        },
+      }));
+
+      console.log('Submitting to embedded API with segments:', segmentsData);
+
+      setSubmissionProgress('Submitting to phraze.so processing...');
+
+      const response = await processVideo(embeddedToken, {
+        processing_type: 'lip_sync',
+        segments: segmentsData,
+      });
+
+      console.log('Embedded submission response:', response);
+      setSubmissionProgress('Job submitted! Processing...');
+
+      // Poll for job status until completion
+      await pollJobStatus(response.job_id, embeddedToken);
+
+    } catch (error: unknown) {
+      console.error('Error submitting embedded video:', error);
+      setSubmissionProgress('');
+      setIsSubmitting(false);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Error submitting video: ${errorMessage}`);
+    }
+  }, [embeddedToken, phrazeJobId, segments, pollJobStatus]);
 
   return {
     isSubmitting,

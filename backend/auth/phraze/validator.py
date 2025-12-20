@@ -70,20 +70,36 @@ class PhrazeValidator:
 
         try:
             public_key = cls.get_public_key()
+            logger.info(f"Environment: {settings.environment}, public_key present: {bool(public_key)}")
 
             # For development without public key, decode without verification
             if not public_key and settings.environment == "development":
+                logger.info("Using development mode - decoding without verification")
+                # jose library requires a key parameter even when verify_signature is False
+                # Use a dummy key and disable all verification
                 payload = jwt.decode(
                     token,
-                    options={"verify_signature": False}
+                    "",  # Empty key since we're not verifying
+                    algorithms=["RS256", "HS256"],  # Accept both since we're not verifying
+                    options={
+                        "verify_signature": False,
+                        "verify_aud": False,
+                        "verify_iss": False,
+                        "verify_sub": False,
+                        "verify_jti": False,
+                        "verify_at_hash": False,
+                    }
                 )
             else:
+                logger.info("Using production mode - verifying with RS256")
                 payload = jwt.decode(
                     token,
                     public_key,
                     algorithms=["RS256"],
                     options={"verify_aud": False}
                 )
+
+            logger.info(f"Token decoded successfully: {payload}")
 
             # Validate required fields
             token_payload = PhrazeTokenPayload(**payload)
