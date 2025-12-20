@@ -24,6 +24,7 @@ from backend.api.routes.video_editors import router as video_editors_router
 from backend.api.routes.upload import router as upload_router
 from backend.api.routes.init_db_endpoint import router as init_db_router
 from backend.api.routes.test_login_debug import router as debug_router
+from backend.api.routes.embedded import router as embedded_router
 
 from backend.api.websocket import websocket_router
 
@@ -247,6 +248,13 @@ app.include_router(
     debug_router,
     prefix="/api/v1/debug",
     tags=["Debug"]
+)
+
+# Include embedded editor router (for phraze.so integration)
+app.include_router(
+    embedded_router,
+    prefix="/api/v1/embedded",
+    tags=["Embedded Editor (Phraze.so)"]
 )
 
 # Include WebSocket router

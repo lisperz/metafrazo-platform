@@ -21,19 +21,19 @@ class JobStatus(enum.Enum):
 
 class VideoJob(Base):
     __tablename__ = "video_jobs"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+
     # Job identification
     original_filename = Column(String(500), nullable=False)
     display_name = Column(String(500))
-    
+
     # Job status and progress
     status = Column(String(20), default=JobStatus.QUEUED.value)
     progress_percentage = Column(Integer, default=0)
     progress_message = Column(Text)
-    
+
     # Processing configuration
     processing_config = Column(JSONB, default=dict)
     zhaoli_task_id = Column(String(255))
@@ -43,6 +43,9 @@ class VideoJob(Base):
     # Pro Video Editor Support
     is_pro_job = Column(Boolean, default=False)  # True for Pro editor jobs
     segments_data = Column(JSONB, default=None)  # Segment configurations for Pro jobs
+
+    # Embedded Mode Support (for phraze.so integration)
+    is_embedded_job = Column(Boolean, default=False)  # True for embedded editor jobs
     
     # File information
     input_file_size_mb = Column(DECIMAL(8, 2))

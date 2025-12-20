@@ -59,6 +59,20 @@ class Settings(BaseSettings):
     # Sync.so API settings (for Pro Video Editor segment-based lip-sync)
     sync_api_key: str = config("SYNC_API_KEY", default="")
     sync_api_url: str = config("SYNC_API_URL", default="https://api.sync.so")
+
+    # Embedded Mode Configuration (for phraze.so integration)
+    embedded_mode: bool = config("EMBEDDED_MODE", default=False, cast=bool)
+    phraze_domain: str = config("PHRAZE_DOMAIN", default="phraze.so")
+    phraze_callback_url: str = config("PHRAZE_CALLBACK_URL", default="https://phraze.so/api/editor/callback")
+    phraze_public_key_path: str = config("PHRAZE_PUBLIC_KEY_PATH", default="")
+    phraze_public_key: str = config("PHRAZE_PUBLIC_KEY", default="")
+    callback_hmac_secret: str = config("CALLBACK_HMAC_SECRET", default="")
+    allowed_s3_domains: str = config("ALLOWED_S3_DOMAINS", default="s3.amazonaws.com,s3.us-east-2.amazonaws.com")
+
+    @property
+    def allowed_s3_domains_list(self) -> List[str]:
+        """Convert allowed_s3_domains string to list"""
+        return [domain.strip() for domain in self.allowed_s3_domains.split(',')]
     
     # File upload settings
     max_upload_size_mb: int = config("MAX_UPLOAD_SIZE_MB", default=1000, cast=int)

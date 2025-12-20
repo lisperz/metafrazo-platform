@@ -22,6 +22,10 @@ interface ProVideoEditorProps {
   videoUrl: string;
   videoFile: File | null;
   onBack?: () => void;
+  // Embedded mode props (for phraze.so integration)
+  embeddedMode?: boolean;
+  embeddedToken?: string;
+  phrazeJobId?: string;
 }
 
 interface TimelineEffect {
@@ -36,7 +40,10 @@ interface TimelineEffect {
 const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   videoUrl,
   videoFile,
-  onBack
+  onBack,
+  embeddedMode = false,
+  embeddedToken,
+  phrazeJobId,
 }) => {
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);

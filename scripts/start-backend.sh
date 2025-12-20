@@ -49,7 +49,9 @@ except Exception as e:
     sleep 5
 fi
 
+# Set database URL for the application
+export DATABASE_URL="postgresql://vti_user:vti_password_123@localhost:5432/video_text_inpainting"
+
 # Start the backend server
 echo "🔥 Starting FastAPI server..."
-cd backend
-uv run uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+.venv/bin/python -m uvicorn backend.api.main:app --reload --host 0.0.0.0 --port 8000

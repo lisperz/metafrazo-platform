@@ -22,6 +22,7 @@ import VideoInpaintingPage from './pages/video/VideoInpaintingPage';
 import SimpleVideoInpaintingPage from './pages/video/SimpleVideoInpaintingPage';
 import ProVideoEditorPage from './pages/video/ProVideoEditorPage';
 import VideoEditorPage from './pages/video/VideoEditorPage';
+import { EmbeddedEditorPage } from './pages/embedded';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -62,12 +63,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
   
-  // For simple video inpainting page and video editor, render without layout for full-screen experience
-  const fullScreenRoutes = ['/simple', '/editor', '/editor/pro'];
+  // For simple video inpainting page, video editor, and embedded editor, render without layout for full-screen experience
+  const fullScreenRoutes = ['/simple', '/editor', '/editor/pro', '/editor/embedded'];
+  const isFullScreen = fullScreenRoutes.includes(location.pathname) || location.pathname.startsWith('/editor/embedded');
   console.log('[Layout] Current pathname:', location.pathname);
-  console.log('[Layout] Should use full-screen:', fullScreenRoutes.includes(location.pathname));
-  
-  if (fullScreenRoutes.includes(location.pathname)) {
+  console.log('[Layout] Should use full-screen:', isFullScreen);
+
+  if (isFullScreen) {
     return <>{children}</>;
   }
   
@@ -217,7 +219,13 @@ const App: React.FC = () => {
             </ProtectedRoute>
           }
         />
-        
+
+        {/* Embedded Editor Route - Public (uses JWT token from phraze.so) */}
+        <Route
+          path="/editor/embedded"
+          element={<EmbeddedEditorPage />}
+        />
+
         {/* History Route */}
         <Route
           path="/history"

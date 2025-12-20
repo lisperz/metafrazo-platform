@@ -24,11 +24,16 @@ import { useEffectsStore, VideoEffect } from '../../store/effectsStore';
 import { useNavigate } from 'react-router-dom';
 import { calculateProgressPercentage, formatTime as formatTimeUtil, clampTime, handleTimelineInteraction } from '../../utils/timelineUtils';
 import { API_ENDPOINTS } from './GhostCut/constants/editorConstants';
+import { processVideo as processEmbeddedVideo, getJobStatus as getEmbeddedJobStatus } from '../../services/embeddedApi';
 
 interface GhostCutVideoEditorProps {
   videoUrl: string;
   videoFile: File | null;
   onBack?: () => void;
+  // Embedded mode props (for phraze.so integration)
+  embeddedMode?: boolean;
+  embeddedToken?: string;
+  phrazeJobId?: string;
 }
 
 interface TimelineEffect {
@@ -40,10 +45,13 @@ interface TimelineEffect {
   label: string;
 }
 
-const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({ 
-  videoUrl, 
-  videoFile, 
-  onBack 
+const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
+  videoUrl,
+  videoFile,
+  onBack,
+  embeddedMode = false,
+  embeddedToken,
+  phrazeJobId,
 }) => {
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
@@ -599,6 +607,65 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
           size="small"
           disabled={isSubmitting}
           onClick={async () => {
+            // Handle embedded mode submission
+            if (embeddedMode && embeddedToken) {
+              setIsSubmitting(true);
+              setSubmissionProgress('Starting video processing...');
+
+              try {
+                console.log('Submitting video via embedded API...');
+
+                // Determine processing type based on audio file
+                const processingType = audioFile ? 'both' : 'text_removal';
+
+                const result = await processEmbeddedVideo(embeddedToken, {
+                  processing_type: processingType,
+                  audio_url: undefined, // Audio URL would come from S3 in embedded mode
+                });
+
+                console.log('Embedded processing started:', result);
+                setSubmissionProgress('Processing started! Waiting for completion...');
+
+                // Poll for job completion
+                const pollJobStatus = async () => {
+                  try {
+                    const status = await getEmbeddedJobStatus(result.job_id, embeddedToken);
+
+                    if (status.status === 'completed') {
+                      setSubmissionProgress('Processing completed successfully!');
+                      setTimeout(() => {
+                        if (onBack) onBack();
+                      }, 2000);
+                    } else if (status.status === 'failed') {
+                      setIsSubmitting(false);
+                      setSubmissionProgress('');
+                      alert(`Processing failed: ${status.error_message || 'Unknown error'}`);
+                    } else {
+                      // Still processing, continue polling
+                      setSubmissionProgress(`Processing... ${status.progress}%`);
+                      setTimeout(pollJobStatus, 5000);
+                    }
+                  } catch (err) {
+                    console.error('Error polling job status:', err);
+                    setIsSubmitting(false);
+                    setSubmissionProgress('');
+                  }
+                };
+
+                // Start polling after a delay
+                setTimeout(pollJobStatus, 3000);
+
+              } catch (error: any) {
+                console.error('Embedded submission error:', error);
+                setIsSubmitting(false);
+                setSubmissionProgress('');
+                const errorMsg = error.response?.data?.detail?.message || error.message || 'Unknown error';
+                alert(`Submission failed: ${errorMsg}`);
+              }
+              return;
+            }
+
+            // Standard mode submission (existing code)
             if (!videoFile) {
               console.error('No video file available for submission');
               return;
@@ -609,7 +676,7 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
 
             try {
               console.log('Submitting video for AI processing...');
-              
+
               const formData = new FormData();
               formData.append('file', videoFile);
               formData.append('display_name', `Video Processing - ${videoFile.name}`);

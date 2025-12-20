@@ -104,41 +104,49 @@ CREATE TABLE credit_packages (
 -- Main jobs table
 CREATE TABLE video_jobs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE, -- Nullable for embedded jobs
+
     -- Job identification
     original_filename VARCHAR(500) NOT NULL,
     display_name VARCHAR(500),
-    
+
     -- Job status and progress
     status VARCHAR(20) NOT NULL DEFAULT 'queued' CHECK (status IN ('queued', 'uploading', 'processing', 'completed', 'failed', 'canceled')),
     progress_percentage INTEGER DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
     progress_message TEXT,
-    
+
     -- Processing configuration
     processing_config JSONB NOT NULL DEFAULT '{}', -- Font, languages, regions, etc.
     zhaoli_task_id VARCHAR(255), -- External API task ID
     estimated_credits INTEGER,
     actual_credits_used INTEGER,
-    
+
+    -- Pro Video Editor Support
+    is_pro_job BOOLEAN DEFAULT FALSE,
+    segments_data JSONB, -- Segment configurations for Pro jobs
+
+    -- Embedded Mode Support (phraze.so integration)
+    is_embedded_job BOOLEAN DEFAULT FALSE,
+
     -- File information
     input_file_size_mb DECIMAL(8,2),
     output_file_size_mb DECIMAL(8,2),
+    output_url TEXT, -- URL to download the processed video
     video_duration_seconds INTEGER,
     video_resolution VARCHAR(20), -- '1080p', '720p', etc.
-    
+
     -- Processing times
     queued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
     processing_duration_seconds INTEGER,
-    
+
     -- Error handling
     error_message TEXT,
     error_code VARCHAR(50),
     retry_count INTEGER DEFAULT 0,
     max_retries INTEGER DEFAULT 3,
-    
+
     -- Metadata and audit
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
