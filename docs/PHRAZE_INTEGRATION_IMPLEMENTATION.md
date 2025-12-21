@@ -107,6 +107,39 @@ The system uses `CALLBACK_BASE_URL` for Docker workers to reach the host/product
 
 The callback service automatically normalizes URLs based on the environment.
 
+## Audio Crop Times Logic
+
+The system ensures audio crop times are **always** sent to Sync.so for proper `sync_mode: "remap"` behavior:
+
+### How It Works
+
+1. **User provides full audio file** corresponding to full video
+2. **Segment defines video region** (e.g., 0-8 seconds of video)
+3. **Audio crop times must match segment times** so Sync.so knows which portion of audio to use
+
+### Default Behavior
+
+When audio crop times are not explicitly set by the user:
+- `audioInput.startTime` defaults to segment `startTime`
+- `audioInput.endTime` defaults to segment `endTime`
+
+This is handled in `useVideoSubmission.ts`:
+```typescript
+const audioStartTime = seg.audioInput.startTime ?? seg.startTime;
+const audioEndTime = seg.audioInput.endTime ?? seg.endTime;
+```
+
+### Why This Matters
+
+Without proper audio crop times:
+- Sync.so uses the entire audio file length
+- With `sync_mode: "remap"`, output video length = audio length
+- This causes output video to be longer than input video
+
+With proper audio crop times:
+- Sync.so uses only the specified portion of audio
+- Output video length matches input video length
+
 ## Error Codes
 
 | Code | Description |
@@ -247,7 +280,8 @@ railway logs --service frontend
 |------|-------------|
 | `frontend/src/pages/embedded/` | Embedded editor page |
 | `frontend/src/services/embeddedApi.ts` | API service for embedded endpoints |
-| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission and polling |
+| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission with audio crop time defaults |
+| `frontend/src/components/VideoEditor/Pro/SegmentDialog/hooks/useSegmentForm.ts` | Segment form with audio crop logic |
 
 ---
 
@@ -271,3 +305,12 @@ railway logs --service frontend
 - Check `SYNC_API_KEY` is valid
 - Verify video URL is accessible
 - Check audio files were uploaded successfully
+
+### Output video length doesn't match input
+- **Symptom**: Output video is longer (e.g., 12-14 seconds) than input video (e.g., 8 seconds)
+- **Cause**: Audio crop times not being sent to Sync.so, so it uses full audio length
+- **Solution**: Ensure `audioInput.startTime` and `audioInput.endTime` default to segment times
+- **Files to check**:
+  - `useVideoSubmission.ts`: Should have `seg.audioInput.startTime ?? seg.startTime`
+  - `useSegmentForm.ts`: `hasAudioCrop` logic should use `&&` not `||`
+- **Debug**: Check backend logs for `Sync.so API payload` to verify audio crop times are set
