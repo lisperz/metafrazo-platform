@@ -119,30 +119,24 @@ export const useVideoSubmission = (
       console.log('RAW SEGMENTS FROM STORE:', JSON.stringify(segments, null, 2));
 
       // Build segments data for API
+      // IMPORTANT: Audio crop times must ALWAYS be set for Sync.so to work correctly
+      // If not explicitly set, default to segment video times (audio matches video)
       const segmentsData = segments.map(seg => {
-        // Per Sync.so docs: audioInput times are REQUIRED when multiple segments share the same audio
-        // This tells Sync.so which portion of the audio file to use for each segment
-        const audioInput: {
-          refId: string;
-          startTime?: number;
-          endTime?: number;
-        } = {
-          refId: seg.audioInput.refId,
-        };
+        // Default audio crop times to segment times if not set
+        // This ensures Sync.so knows exactly which portion of audio to use
+        const audioStartTime = seg.audioInput.startTime ?? seg.startTime;
+        const audioEndTime = seg.audioInput.endTime ?? seg.endTime;
 
-        // ALWAYS include audio crop times if they are set in the segment
-        // This is critical when multiple segments use the same audio file
-        if (seg.audioInput.startTime !== null && seg.audioInput.startTime !== undefined) {
-          audioInput.startTime = seg.audioInput.startTime;
-        }
-        if (seg.audioInput.endTime !== null && seg.audioInput.endTime !== undefined) {
-          audioInput.endTime = seg.audioInput.endTime;
-        }
+        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime}`);
 
         return {
           startTime: seg.startTime,
           endTime: seg.endTime,
-          audioInput,
+          audioInput: {
+            refId: seg.audioInput.refId,
+            startTime: audioStartTime,
+            endTime: audioEndTime,
+          },
         };
       });
 
@@ -318,11 +312,20 @@ export const useVideoSubmission = (
       }
 
       // Step 2: Build segments data with audio URLs
+      // IMPORTANT: Audio crop times must ALWAYS be set for Sync.so to work correctly
+      // If not explicitly set, default to segment video times (audio matches video)
       const segmentsData = segments.map(seg => {
         const audioUrl = audioUrlMap.get(seg.audioInput.refId);
         if (!audioUrl) {
           throw new Error(`No audio URL for segment ${seg.id}`);
         }
+
+        // Default audio crop times to segment times if not set
+        // This ensures Sync.so knows exactly which portion of audio to use
+        const audioStartTime = seg.audioInput.startTime ?? seg.startTime;
+        const audioEndTime = seg.audioInput.endTime ?? seg.endTime;
+
+        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime}`);
 
         return {
           startTime: seg.startTime,
@@ -330,8 +333,8 @@ export const useVideoSubmission = (
           audioInput: {
             refId: seg.audioInput.refId,
             url: audioUrl,
-            startTime: seg.audioInput.startTime,
-            endTime: seg.audioInput.endTime,
+            startTime: audioStartTime,
+            endTime: audioEndTime,
           },
         };
       });

@@ -42,11 +42,11 @@ export const useSegmentForm = ({
           setLabel(segment.label || '');
           setAudioFile(segment.audioInput.file);
 
+          // Check if audio crop times are explicitly set (not null/undefined)
+          // Use && (AND) logic: either startTime OR endTime must be explicitly set
           const hasAudioCrop =
-            segment.audioInput.startTime !== null ||
-            segment.audioInput.startTime !== undefined ||
-            segment.audioInput.endTime !== null ||
-            segment.audioInput.endTime !== undefined;
+            (segment.audioInput.startTime !== null && segment.audioInput.startTime !== undefined) ||
+            (segment.audioInput.endTime !== null && segment.audioInput.endTime !== undefined);
           setEnableAudioCrop(hasAudioCrop);
           setAudioStartTime(segment.audioInput.startTime ?? null);
           setAudioEndTime(segment.audioInput.endTime ?? null);
@@ -116,13 +116,17 @@ export const useSegmentForm = ({
   const submitForm = () => {
     if (!validateForm()) return false;
 
+    // When audio crop is explicitly enabled, use user-specified times
+    // Otherwise, auto-set audio crop times to match video segment times
+    // This ensures the audio portion matches the video segment portion
+    // (user provides full audio file corresponding to full video file)
     const audioInput: AudioInput = {
       refId: `audio-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       file: audioFile!,
       fileName: audioFile!.name,
       fileSize: audioFile!.size,
-      startTime: enableAudioCrop ? audioStartTime ?? undefined : undefined,
-      endTime: enableAudioCrop ? audioEndTime ?? undefined : undefined,
+      startTime: enableAudioCrop ? (audioStartTime ?? startTime) : startTime,
+      endTime: enableAudioCrop ? (audioEndTime ?? endTime) : endTime,
     };
 
     if (editingSegmentId) {

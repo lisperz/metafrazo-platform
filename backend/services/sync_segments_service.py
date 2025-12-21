@@ -88,7 +88,9 @@ class SyncSegmentsService:
 
             # Build segments array for Sync.so API
             segments_array = []
-            for seg in segments:
+            for i, seg in enumerate(segments):
+                logger.info(f"Processing segment {i}: raw segment data = {json.dumps(seg, indent=2)}")
+
                 segment_dict = {
                     "startTime": seg["startTime"],
                     "endTime": seg["endTime"],
@@ -99,11 +101,17 @@ class SyncSegmentsService:
 
                 # Add optional audio crop times if present
                 audio_input = seg["audioInput"]
+                logger.info(
+                    f"Segment {i} audioInput: startTime={audio_input.get('startTime')}, "
+                    f"endTime={audio_input.get('endTime')}, type(startTime)={type(audio_input.get('startTime'))}"
+                )
+
                 if audio_input.get("startTime") is not None:
                     segment_dict["audioInput"]["startTime"] = audio_input["startTime"]
                 if audio_input.get("endTime") is not None:
                     segment_dict["audioInput"]["endTime"] = audio_input["endTime"]
 
+                logger.info(f"Segment {i} final dict: {json.dumps(segment_dict, indent=2)}")
                 segments_array.append(segment_dict)
 
             # Build final API request payload
@@ -112,7 +120,7 @@ class SyncSegmentsService:
                 "input": input_array,
                 "segments": segments_array,
                 "options": {
-                    "sync_mode": "remap"  # Default for segments: adjust playback speed to match audio/video duration
+                    "sync_mode": "remap"  # Remap works correctly when audio crop times match segment times
                 }
             }
 
