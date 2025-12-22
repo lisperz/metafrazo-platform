@@ -71,15 +71,22 @@ export const useVideoSubmission = (
       return;
     }
 
-    if (segments.length === 0) {
-      console.error('No segments configured - segments array is empty!');
-      alert('Please add at least one segment for Pro video processing');
+    // In embedded mode, allow either segments OR effects (erasure areas)
+    const hasErasureEffects = effects.filter(e => e.type === 'erasure').length > 0;
+    if (embeddedMode && embeddedToken) {
+      if (segments.length === 0 && !hasErasureEffects) {
+        console.error('No segments or erasure areas configured');
+        alert('Please add at least one segment or erasure area for processing');
+        return;
+      }
+      await handleEmbeddedSubmit();
       return;
     }
 
-    // Handle embedded mode submission via phraze.so API
-    if (embeddedMode && embeddedToken) {
-      await handleEmbeddedSubmit();
+    // For non-embedded mode, segments are required
+    if (segments.length === 0) {
+      console.error('No segments configured - segments array is empty!');
+      alert('Please add at least one segment for Pro video processing');
       return;
     }
 
@@ -207,13 +214,15 @@ export const useVideoSubmission = (
       setIsSubmitting(false);
       alert('Error submitting video. Please try again.');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [videoFile, videoUrl, embeddedMode, embeddedToken, segments, effects, navigate]);
 
   /**
    * Poll for job status until completion or failure
+   * Note: For combined processing (lip-sync + text removal), this can take 20+ minutes
    */
   const pollJobStatus = useCallback(async (jobId: string, token: string): Promise<void> => {
-    const MAX_POLLS = 120; // 10 minutes at 5 second intervals
+    const MAX_POLLS = 360; // 30 minutes at 5 second intervals (for combined processing)
     const POLL_INTERVAL = 5000; // 5 seconds
 
     for (let i = 0; i < MAX_POLLS; i++) {
@@ -255,10 +264,10 @@ export const useVideoSubmission = (
       }
     }
 
-    // Timeout after max polls
+    // Timeout after max polls - job continues in background
     setSubmissionProgress('');
     setIsSubmitting(false);
-    alert('Processing is taking longer than expected. Check the jobs page for status.');
+    alert('Your video is still processing in the background. The phraze.so callback will be sent when complete.');
   }, []);
 
   /**
@@ -341,11 +350,36 @@ export const useVideoSubmission = (
 
       console.log('Submitting to embedded API with segments:', segmentsData);
 
+      // Build effects data from effectsStore (erasure/protection areas)
+      const effectsData = effects.map(effect => ({
+        type: effect.type,
+        startTime: effect.startTime,
+        endTime: effect.endTime,
+        region: effect.region,
+      }));
+
+      // Filter to only erasure effects for text removal
+      const erasureEffects = effectsData.filter(e => e.type === 'erasure');
+      const hasSegments = segmentsData.length > 0;
+      const hasErasureEffects = erasureEffects.length > 0;
+
+      // Determine processing type based on what's configured
+      let processingType: 'lip_sync' | 'text_removal' | 'both' = 'lip_sync';
+      if (hasSegments && hasErasureEffects) {
+        processingType = 'both';
+      } else if (hasErasureEffects && !hasSegments) {
+        processingType = 'text_removal';
+      }
+
+      console.log('Processing type:', processingType);
+      console.log('Erasure effects:', erasureEffects);
+
       setSubmissionProgress('Submitting to phraze.so processing...');
 
       const response = await processVideo(embeddedToken, {
-        processing_type: 'lip_sync',
-        segments: segmentsData,
+        processing_type: processingType,
+        segments: hasSegments ? segmentsData : undefined,
+        effects: hasErasureEffects ? erasureEffects : undefined,
       });
 
       console.log('Embedded submission response:', response);
@@ -362,7 +396,7 @@ export const useVideoSubmission = (
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Processing failed: ${errorMessage}`);
     }
-  }, [embeddedToken, phrazeJobId, segments, pollJobStatus]);
+  }, [embeddedToken, phrazeJobId, segments, effects, pollJobStatus]);
 
   return {
     isSubmitting,

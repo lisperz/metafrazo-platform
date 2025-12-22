@@ -82,6 +82,7 @@ class ProcessRequest(BaseModel):
     target_language: Optional[str] = Field(None, description="Target language for lip-sync")
     audio_url: Optional[str] = Field(None, description="Audio URL for lip-sync")
     segments: Optional[list[dict]] = Field(None, description="Segments for pro lip-sync")
+    effects: Optional[list[dict]] = Field(None, description="Effects for text removal (erasure/protection areas)")
 
 
 class ErrorResponse(BaseModel):

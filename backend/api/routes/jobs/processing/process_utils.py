@@ -2,9 +2,18 @@
 Utility functions for direct_process routes
 """
 
+import json
+import hashlib
+import uuid
+import asyncio
+import aiohttp
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import logging
+
+from backend.config import settings
+from backend.models.database import SessionLocal
+from backend.models.job import VideoJob, JobStatus
 
 logger = logging.getLogger(__name__)
 

@@ -156,9 +156,12 @@ async def process_embedded_video(
             # Don't send callback here - Celery will handle it when done
             return
         elif processing_type == "both":
-            await process_lip_sync_and_text_removal(
+            # Start combined processing (non-blocking) - Celery handles polling
+            await start_combined_lipsync_and_text_removal(
                 job, token_payload, processing_config, db
             )
+            # Don't send callback here - Celery will handle it when done
+            return
         else:
             raise ValueError(f"Unknown processing type: {processing_type}")
 
@@ -256,88 +259,88 @@ async def process_text_removal(
             db.commit()
 
 
-async def process_lip_sync_and_text_removal(
+async def start_combined_lipsync_and_text_removal(
     job: VideoJob,
     token_payload: PhrazeTokenPayload,
     processing_config: ProcessRequest,
     db: Session
-):
-    """Process both lip-sync and text removal (chained)"""
-    from backend.api.routes.video_editors.sync.sync_api_original import (
-        call_sync_api,
-        poll_sync_status,
-        call_ghostcut_with_sync_output
-    )
-    from backend.api.routes.jobs.processing.direct_process_original import (
-        check_ghostcut_status_async
-    )
+) -> None:
+    """
+    Start combined lip-sync + text removal processing (non-blocking).
 
-    if not processing_config.audio_url:
-        raise ValueError("Audio URL is required for lip-sync processing")
+    This creates a Sync.so generation and stores the effects data.
+    Celery beat will poll for lip-sync completion, then chain to text removal.
 
-    job.progress_percentage = 10
-    job.progress_message = "Starting lip-sync generation..."
-    db.commit()
+    Flow (handled by Celery):
+    1. Lip-sync via Sync.so with segments
+    2. Celery polls for Sync.so completion
+    3. When lip-sync done, Celery starts text removal via GhostCut
+    4. Celery polls for GhostCut completion
+    5. Celery sends callback with final output
+    """
+    try:
+        segments = processing_config.segments or []
+        effects = processing_config.effects or []
 
-    # Step 1: Lip-sync
-    sync_generation_id = await call_sync_api(
-        token_payload.video_url,
-        processing_config.audio_url
-    )
+        # Build audio URL mapping from segments
+        audio_url_mapping = {}
+        for seg in segments:
+            audio_input = seg.get("audioInput", {})
+            ref_id = audio_input.get("refId")
+            audio_url = audio_input.get("url")
+            if ref_id and audio_url:
+                audio_url_mapping[ref_id] = audio_url
 
-    job.job_metadata = job.job_metadata or {}
-    job.job_metadata["sync_generation_id"] = sync_generation_id
-    job.progress_percentage = 30
-    job.progress_message = "Lip-sync processing..."
-    db.commit()
+        has_segments = len(segments) > 0 and len(audio_url_mapping) > 0
 
-    # Poll sync completion
-    sync_output_url = None
-    while True:
-        await asyncio.sleep(10)
+        if not has_segments:
+            raise ValueError(
+                "Segments with audio are required for combined processing"
+            )
 
-        status_result = await poll_sync_status(sync_generation_id)
+        logger.info(
+            f"Job {job.id}: Starting combined processing with "
+            f"{len(segments)} segments, {len(effects)} effects"
+        )
 
-        if status_result["status"] == "completed":
-            sync_output_url = status_result.get("output_url")
-            job.progress_percentage = 50
-            job.progress_message = "Lip-sync completed, starting text removal..."
-            db.commit()
-            break
+        # Create Sync.so generation
+        generation_id = await embedded_processing_service.create_lipsync_generation(
+            video_url=token_payload.video_url,
+            segments=segments,
+            audio_url_mapping=audio_url_mapping
+        )
 
-        elif status_result["status"] == "failed":
-            raise Exception(status_result.get("error", "Lip-sync failed"))
+        # Update job - mark as embedded for Celery polling
+        job.status = JobStatus.PROCESSING.value
+        job.is_pro_job = True
+        job.is_embedded_job = True
+        job.zhaoli_task_id = generation_id
+        job.progress_percentage = 20
+        job.progress_message = "Lip-sync processing..."
 
-    # Step 2: Text removal on lip-synced video
-    ghostcut_task_id = await call_ghostcut_with_sync_output(
-        sync_output_url, str(job.id), []
-    )
+        # Store all metadata for Celery to use
+        if not job.job_metadata:
+            job.job_metadata = {}
+        job.job_metadata["sync_generation_id"] = generation_id
+        job.job_metadata["phraze_callback_url"] = token_payload.callback_url
+        job.job_metadata["phraze_job_id"] = token_payload.job_id
+        job.job_metadata["phraze_user_id"] = token_payload.user_id
+        # Store effects for text removal step (Celery will use this)
+        job.job_metadata["pending_effects"] = effects
+        job.job_metadata["processing_type"] = "both"
+        flag_modified(job, 'job_metadata')
 
-    job.zhaoli_task_id = ghostcut_task_id
-    job.progress_percentage = 70
-    job.progress_message = "Text removal processing..."
-    db.commit()
+        db.commit()
 
-    # Poll ghostcut completion
-    while True:
-        await asyncio.sleep(10)
+        logger.info(
+            f"Job {job.id}: Sync.so generation {generation_id} created. "
+            "Celery will poll and chain to text removal when done."
+        )
 
-        status_result = await check_ghostcut_status_async(ghostcut_task_id)
-
-        if status_result["status"] == "completed":
-            job.status = JobStatus.COMPLETED.value
-            job.completed_at = datetime.datetime.now(datetime.timezone.utc)
-            job.progress_percentage = 100
-            job.progress_message = "Lip-sync and text removal completed!"
-            job.output_url = status_result.get("output_url")
-            db.commit()
-            break
-
-        elif status_result["status"] == "failed":
-            raise Exception(status_result.get("error", "Text removal failed"))
-
-        else:
-            progress = status_result.get("progress", 0)
-            job.progress_percentage = min(70 + int(progress * 0.25), 95)
-            job.progress_message = f"Text removal: {progress}%"
-            db.commit()
+    except Exception as e:
+        logger.error(f"Job {job.id}: Failed to start combined processing: {e}")
+        job.status = JobStatus.FAILED.value
+        job.error_message = str(e)
+        job.completed_at = datetime.datetime.now(datetime.timezone.utc)
+        db.commit()
+        raise

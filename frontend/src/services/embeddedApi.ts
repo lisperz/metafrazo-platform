@@ -18,11 +18,24 @@ export interface ValidationResponse {
   message: string;
 }
 
+export interface EffectData {
+  type: 'erasure' | 'protection' | 'text';
+  startTime: number;
+  endTime: number;
+  region: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+}
+
 export interface ProcessRequest {
   processing_type: 'text_removal' | 'lip_sync' | 'both';
   target_language?: string;
   audio_url?: string;
   segments?: any[];
+  effects?: EffectData[];
 }
 
 export interface ProcessResponse {
