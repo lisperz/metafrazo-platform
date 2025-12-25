@@ -96,9 +96,11 @@ async def process_video(
 
         # Create internal job record for tracking
         internal_job_id = uuid.uuid4()
+        # Use default user ID for embedded jobs from phraze.so
+        default_user_id = uuid.UUID("03139de3-8cc6-4702-a2fd-048dff642ccb")
         job = VideoJob(
             id=internal_job_id,
-            user_id=None,  # No local user - using phraze user ID
+            user_id=default_user_id,
             original_filename=f"phraze_job_{token_payload.job_id}",
             display_name=f"Phraze Edit - {token_payload.job_id[:8]}",
             status=JobStatus.QUEUED.value,
