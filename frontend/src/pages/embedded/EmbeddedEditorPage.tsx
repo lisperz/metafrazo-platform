@@ -3,6 +3,7 @@
  * This page loads videos from S3 URL provided via JWT token
  * Routes to Normal or Pro editor based on subscription tier
  * No upload UI - video is pre-loaded from phraze.so
+ * Updated: 2025-12-25 - Force rebuild for Railway deployment
  */
 
 import React, { useEffect, useState, useCallback } from 'react';
