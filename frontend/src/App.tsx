@@ -22,7 +22,7 @@ import VideoInpaintingPage from './pages/video/VideoInpaintingPage';
 import SimpleVideoInpaintingPage from './pages/video/SimpleVideoInpaintingPage';
 import ProVideoEditorPage from './pages/video/ProVideoEditorPage';
 import VideoEditorPage from './pages/video/VideoEditorPage';
-import { EmbeddedEditorPage } from './pages/embedded';
+import EmbeddedEditorPage from './pages/embedded/EmbeddedEditorPage';
 
 // Protected Route Component
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
