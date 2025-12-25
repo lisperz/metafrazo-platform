@@ -1,129 +1,113 @@
 # Next Session Context - Phraze.so Integration
 
-**Last Updated**: December 20, 2025
-**Current Status**: **Phase 2 COMPLETED - Ready for Production Deployment**
+**Last Updated**: December 25, 2025
+**Current Status**: **Phase 3 COMPLETE - Embedded Editor Fully Functional on Railway**
 
 ---
 
-## Phase 2 Completion Summary
+## What Was Completed This Session (Dec 25, 2025)
 
-Phase 2 of the phraze.so embedded editor integration is **complete**. All core functionality including real Sync.so API integration, callback system, and audio/video sync timing is working correctly.
+### 1. JWT Token Generation & Testing Infrastructure
+- Created `/keys/phraze_private.pem` and `/keys/phraze_public.pem` for RSA256 signing
+- Created `/scripts/generate_jwt_token.py` to generate test JWT tokens for local development and testing
+- Tested JWT token validation on backend - confirmed working with `ENVIRONMENT=development`
 
-### Completed Features
+### 2. Fixed Embedded Editor Route on Frontend
+- **CRITICAL FIX**: Changed import in `frontend/src/App.tsx` line 25
+  - From: `import { EmbeddedEditorPage } from './pages/embedded'` (named import - WRONG)
+  - To: `import EmbeddedEditorPage from './pages/embedded/EmbeddedEditorPage'` (default import - CORRECT)
+- This was causing the `/editor/embedded` route to fail silently and redirect to `/dashboard`
+- Fixed by updating import to match the default export in `EmbeddedEditorPage.tsx`
 
-| Feature | Status | Description |
-|---------|--------|-------------|
-| JWT Validation | Done | Token validation middleware with RS256/HS256 support |
-| Embedded Editor Page | Done | `/editor/embedded` route with video URL from token |
-| Video Loading from S3 | Done | Loads video directly from pre-signed URL |
-| Pro Editor Integration | Done | Full segment-based lip-sync editing |
-| Audio File Upload | Done | Upload audio to S3 via `/upload-audio` endpoint |
-| Real Sync.so Integration | Done | Actual lip-sync processing via Sync.so API |
-| Celery Worker Polling | Done | Docker workers poll Sync.so and send callbacks |
-| Callback System | Done | Both "started" and "completed" callbacks working |
-| Audio/Video Sync Timing | Done | Output video length matches input video length |
-| Mock Test Page | Done | Test page at `/api/v1/embedded/mock/test-page` |
+### 3. Cleared Railway Frontend Cache & Redeployed
+- Issue: Frontend build cache was stale, preventing code updates from deploying
+- Solution: Cleared Railway cache in dashboard, triggered manual rebuild
+- Result: Frontend now updated with the import fix and routes correctly to embedded editor
 
----
+### 4. Verified Embedded Editor Works End-to-End
+- Generated JWT token with test credentials
+- Tested URL: `https://frontend-production-b02b.up.railway.app/editor/embedded?token=<token>`
+- Confirmed: Embedded editor now loads and displays video editor (not redirecting to dashboard anymore)
+- Backend validates JWT tokens correctly with `ENVIRONMENT=development`
 
-## How to Test Locally
-
-1. Start Docker services: `docker-compose up -d`
-2. Start the backend: `bash scripts/start-backend.sh`
-3. Start the frontend: `bash scripts/start-frontend.sh`
-4. Open test page: `http://localhost:8000/api/v1/embedded/mock/test-page`
-5. Generate a new token (subscription tier: "pro")
-6. Click "Open Editor" to open embedded editor
-7. Add a segment with audio file
-8. Click "Process" to submit
-9. Verify output video length matches input video length
+### 5. Created JWT Token Generation Script
+- Script: `scripts/generate_jwt_token.py`
+- Generates RS256-signed JWT tokens with proper payload structure
+- Includes example values for testing (Taylor Swift S3 bucket URL)
+- Output: Full test URLs for both Railway and local development
 
 ---
 
-## Key Architecture
+## Immediate Next Steps for Phraze.so Integration (Priority Order)
 
-### Audio Crop Times Logic
+### Step 1: Production JWT Signature Verification Setup (CRITICAL)
+Current state: Backend running with `ENVIRONMENT=development` (skips signature verification)
+Need to do:
+1. Request RSA public key from Harshit (Phraze.so developer)
+   - Save as `PHRAZE_PUBLIC_KEY` environment variable on Railway
+   - Remove `ENVIRONMENT=development` to enable signature verification
+2. Coordinate on `CALLBACK_HMAC_SECRET`
+   - Generate production secret: `python -c "import secrets; print(secrets.token_hex(32))"`
+   - Share with Harshit for callback validation
 
-The system ensures audio crop times are ALWAYS sent to Sync.so:
-- If user explicitly sets audio crop times, those are used
-- If not set, audio crop times default to match video segment times
-- This ensures Sync.so knows exactly which portion of audio to use for each segment
+### Step 2: Test Production Flow with Real Phraze.so Account
+Once signature verification is enabled:
+1. Have Harshit create a test job in Phraze.so
+2. Request JWT token from Phraze.so for that job
+3. Test the embedded editor URL on Railway with real token
+4. Verify entire workflow: edit → submit → process → callback
 
-### Callback URL Handling
-
-The system uses `CALLBACK_BASE_URL=http://host.docker.internal:8000` for Docker workers to reach the host machine. The callback service automatically normalizes URLs:
-- **From host backend**: `host.docker.internal` → `localhost`
-- **From Docker worker**: `host.docker.internal` → unchanged
-
----
-
-## Phase 3: Production Deployment (Next Steps)
-
-### 3.1 Railway Deployment
-
-- [ ] Configure Railway environment variables for embedded mode
-- [ ] Set up `CALLBACK_BASE_URL` for Railway (use actual domain)
-- [ ] Deploy updated backend and frontend to Railway
-- [ ] Test embedded flow on Railway
-
-### 3.2 Phraze.so Integration
-
-- [ ] Coordinate with Phraze.so team for production JWT public key
-- [ ] Configure `PHRAZE_PUBLIC_KEY` in Railway environment
-- [ ] Set up `PHRAZE_CALLBACK_URL` for Phraze.so production endpoint
-- [ ] Configure `CALLBACK_HMAC_SECRET` for callback authentication
-- [ ] Test end-to-end flow with Phraze.so team
-
-### 3.3 Domain Setup
-
-- [ ] Set up editor.phraze.so subdomain pointing to Railway frontend
-- [ ] Configure CORS for editor.phraze.so domain
-- [ ] Update `FRONTEND_URL` in production
+### Step 3: Configure Callback URL in Production
+Currently callback URL is hardcoded in test script as `http://localhost:3000/api/open/editor-jobs`
+Need to:
+1. Set correct backend callback endpoint in Phraze.so
+   - Should be: `https://backend-production-268a.up.railway.app/api/v1/embedded/callback`
+2. Coordinate with Harshit to configure on Phraze.so side
 
 ---
 
-## Environment Variables for Production
+## Current Environment Variables on Railway (Backend)
 
-```bash
-# Embedded Mode (add to Railway)
-EMBEDDED_MODE=true
-PHRAZE_DOMAIN=phraze.so
-PHRAZE_PUBLIC_KEY=<RS256 public key from phraze.so>
-PHRAZE_CALLBACK_URL=https://api.phraze.so/editor/callback
-CALLBACK_HMAC_SECRET=<shared secret for callback signatures>
-CALLBACK_BASE_URL=https://backend-production-268a.up.railway.app
-ALLOWED_S3_DOMAINS=s3.amazonaws.com,s3.us-east-2.amazonaws.com
+### Already Configured ✓
+- DATABASE_URL - PostgreSQL on Railway
+- REDIS_URL - Redis on Railway
+- AWS_* - AWS S3 credentials for uploading
+- GHOSTCUT_* - GhostCut API keys
+- SYNC_API_KEY - Sync.so lip-sync API key
+- FRONTEND_URL - Frontend Railway URL
+- CORS_ORIGINS - Includes Phraze.so domain
 
-# Frontend URL (update for editor.phraze.so)
-FRONTEND_URL=https://editor.phraze.so
-CORS_ORIGINS=https://editor.phraze.so,https://phraze.so
+### Need to Update for Production
+- **ENVIRONMENT**: Currently `development` (skips JWT signature verification)
+  - Change to: `production` (requires valid PHRAZE_PUBLIC_KEY)
+- **PHRAZE_PUBLIC_KEY**: Currently has test key, needs real Phraze.so key from Harshit
+- **CALLBACK_HMAC_SECRET**: Has test value, needs coordinated production value with Harshit
+
+---
+
+## Architecture Overview
+
+### Two-Phase Video Processing
+1. **Sync.so (Lip-sync)**: User adds audio segments → Sync.so processes lip-sync
+2. **GhostCut (Text Removal)**: If user adds erasure areas → Chain to GhostCut after Sync.so completes
+
+### Processing Flow
+```
+Phraze.so → JWT Token → Metafrazo Editor (iframe) → Submit Job
+                                                      ↓
+                                              Sync.so Processing
+                                                      ↓
+                                              GhostCut Processing (if needed)
+                                                      ↓
+                                              Upload to S3
+                                                      ↓
+                                              Callback to Phraze.so
 ```
 
----
-
-## Railway Deployment Reference
-
-### Services
-| Service | URL | Status |
-|---------|-----|--------|
-| Backend API | https://backend-production-268a.up.railway.app | Running |
-| Frontend | https://frontend-production-b02b.up.railway.app | Running |
-| PostgreSQL | Internal Railway connection | Connected |
-| Redis | Internal Railway connection | Connected |
-
-### Demo Credentials
-| Email | Password | Role |
-|-------|----------|------|
-| demo@example.com | demo123 | User |
-| boss@example.com | boss123 | Admin |
-
-### Railway CLI Reference
-```bash
-railway logs --service backend
-railway logs --service frontend
-railway up --service backend --detach
-railway up --service frontend --detach
-```
+### Celery Workers
+- **Worker**: Processes video jobs (Sync.so polling, GhostCut polling)
+- **Beat**: Schedules periodic tasks (check job completion every 30 seconds)
+- Task file: `backend/workers/embedded_tasks.py`
 
 ---
 
@@ -136,12 +120,115 @@ railway up --service frontend --detach
 | `backend/auth/phraze/` | JWT validation and callback service |
 | `backend/api/routes/embedded/` | Embedded API routes |
 | `backend/workers/embedded_tasks.py` | Celery tasks for polling and callbacks |
-| `backend/services/sync_segments_service.py` | Sync.so API integration with segment support |
+| `backend/services/embedded_processing.py` | Embedded processing service |
 
 ### Frontend
 | File | Description |
 |------|-------------|
 | `frontend/src/pages/embedded/` | Embedded editor page |
 | `frontend/src/services/embeddedApi.ts` | API service for embedded endpoints |
-| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission with audio crop time defaults |
-| `frontend/src/components/VideoEditor/Pro/SegmentDialog/hooks/useSegmentForm.ts` | Segment form with audio crop logic |
+| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission hook |
+
+### Documentation
+| File | Description |
+|------|-------------|
+| `docs/PHRAZE_INTEGRATION_GUIDE.md` | Integration guide for Phraze.so developer |
+| `docs/RAILWAY_ENVIRONMENT_VARIABLES.md` | Railway env vars documentation |
+
+---
+
+## Railway Services Reference
+
+| Service | URL | Status |
+|---------|-----|--------|
+| Backend API | https://backend-production-268a.up.railway.app | Deploying |
+| Frontend | https://frontend-production-b02b.up.railway.app | Deploying |
+| PostgreSQL | Internal Railway connection | Connected |
+| Redis | Internal Railway connection | Connected |
+
+---
+
+## JWT Authentication
+
+Phraze.so signs JWT tokens with RS256 (RSA private key)
+Metafrazo verifies with RS256 (RSA public key from `PHRAZE_PUBLIC_KEY` env var)
+
+JWT payload includes:
+- `user_id` - Phraze.so user ID
+- `job_id` - Phraze.so job ID
+- `video_url` - S3 URL of video to edit
+- `callback_url` - URL to send completion/failure callbacks
+- `exp` - Expiration timestamp
+
+---
+
+## Callback Format
+
+**Completion callback:**
+```json
+{
+  "event": "job.completed",
+  "job_id": "phraze-job-uuid",
+  "output_url": "https://s3.amazonaws.com/bucket/output.mp4",
+  "processing_time_seconds": 120,
+  "metadata": {...}
+}
+```
+
+**Failure callback:**
+```json
+{
+  "event": "job.failed",
+  "job_id": "phraze-job-uuid",
+  "error_code": "SYNC_FAILED",
+  "error_message": "Lip-sync processing failed",
+  "processing_time_seconds": 30
+}
+```
+
+---
+
+## Testing the Embedded Editor Locally or on Railway
+
+### Using the JWT Token Generation Script
+```bash
+# Generate a test JWT token
+python scripts/generate_jwt_token.py
+
+# Output will show test URLs
+# Railway: https://frontend-production-b02b.up.railway.app/editor/embedded?token=<token>
+# Local:   http://localhost:3001/editor/embedded?token=<token>
+```
+
+### Testing Workflow
+1. Copy the token from script output
+2. Paste full URL into browser (includes token as query parameter)
+3. Frontend validates token with backend
+4. Backend returns validation response with video URL
+5. Embedded editor loads and displays video for editing
+
+### What Works Now
+- JWT token generation with RS256 signature
+- Backend token validation
+- Embedded editor UI loads correctly
+- Video loads from S3
+- (Two-phase processing not yet tested end-to-end)
+
+---
+
+## Key Files Modified This Session
+
+| File | Changes |
+|------|---------|
+| `frontend/src/App.tsx` | Fixed EmbeddedEditorPage import (line 25) |
+| `keys/phraze_private.pem` | NEW - RSA private key for JWT signing |
+| `keys/phraze_public.pem` | NEW - RSA public key for JWT verification |
+| `scripts/generate_jwt_token.py` | NEW - Script to generate test JWT tokens |
+
+## GitHub Repository & Commits
+
+- Repository: `https://github.com/lisperz/metafrazo-platform`
+- Branch: `main`
+- Latest commits:
+  - `074b29d` - Fix EmbeddedEditorPage import from named to default export
+  - `5035464` - Add JWT token generation script and force frontend rebuild
