@@ -51,7 +51,7 @@ async def get_user_stats(
     total_jobs = db.query(VideoJob).filter(VideoJob.user_id == current_user.id).count()
     pending_jobs = db.query(VideoJob).filter(
         VideoJob.user_id == current_user.id,
-        VideoJob.status.in_([JobStatus.QUEUED, JobStatus.PENDING])
+        VideoJob.status.in_([JobStatus.QUEUED, JobStatus.UPLOADING])
     ).count()
     processing_jobs = db.query(VideoJob).filter(
         VideoJob.user_id == current_user.id,
