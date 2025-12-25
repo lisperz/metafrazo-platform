@@ -115,66 +115,39 @@ export const useSegmentHandlers = (
         const maxStartTime = segment.endTime - 0.5; // Minimum 0.5s duration
         const newStartTime = Math.max(0, Math.min(newTime, maxStartTime));
 
-        // Calculate audio duration change
-        const segmentDurationChange = newStartTime - segment.startTime;
-
-        // Update segment with new start time and adjusted audio times
+        // ALWAYS sync audio times to match video segment times
+        // This prevents mismatch issues during video processing
         updateSegment(segmentId, {
           startTime: newStartTime,
           audioInput: {
             ...segment.audioInput,
-            startTime:
-              segment.audioInput.startTime !== undefined
-                ? Math.max(0, segment.audioInput.startTime + segmentDurationChange)
-                : undefined,
+            startTime: newStartTime,
+            endTime: segment.endTime,
           },
         });
       } else if (type === 'end') {
         const minEndTime = segment.startTime + 0.5; // Minimum 0.5s duration
 
-        // Calculate maximum allowed end time
-        // Allow extending up to the FULL original audio duration, not just the segment's crop range
-        let maxAllowedEndTime = duration; // Default to video duration
-
-        if (segment.audioInput.duration) {
-          // Max segment end = min(video duration, original audio duration)
-          // This allows any segment to extend to the full audio length
-          maxAllowedEndTime = Math.min(duration, segment.audioInput.duration);
-        }
+        // Calculate maximum allowed end time (video duration)
+        const maxAllowedEndTime = duration;
 
         const newEndTime = Math.min(maxAllowedEndTime, Math.max(minEndTime, newTime));
 
-        // Calculate how much the segment end time changed
-        const segmentDurationChange = newEndTime - segment.endTime;
-
-        // When dragging the end, extend the audio end time proportionally
-        const currentAudioEnd = segment.audioInput.endTime ?? segment.audioInput.duration ?? segment.endTime;
-        const newAudioEndTime = currentAudioEnd + segmentDurationChange;
-
-        // Update segment with new end time and adjusted audio end time
+        // ALWAYS sync audio times to match video segment times
+        // This prevents mismatch issues during video processing
         updateSegment(segmentId, {
           endTime: newEndTime,
           audioInput: {
             ...segment.audioInput,
-            endTime: Math.min(
-              segment.audioInput.duration ?? newAudioEndTime,
-              newAudioEndTime
-            ),
+            startTime: segment.startTime,
+            endTime: newEndTime,
           },
         });
       } else if (type === 'move') {
         const segmentDuration = segment.endTime - segment.startTime;
 
-        // Calculate maximum allowed position based on video and audio duration
-        // Allow moving as long as the segment end doesn't exceed the full audio duration
-        let maxStartPosition = duration - segmentDuration;
-
-        if (segment.audioInput.duration) {
-          // Ensure segment end (after move) doesn't exceed original audio duration
-          // maxStartPosition = min(video duration - segment duration, audio duration - segment duration)
-          const maxAllowedByAudio = segment.audioInput.duration - segmentDuration;
-          maxStartPosition = Math.min(maxStartPosition, Math.max(0, maxAllowedByAudio));
-        }
+        // Calculate maximum allowed position (video duration only)
+        const maxStartPosition = duration - segmentDuration;
 
         const newStartTime = clampTime(
           newTime - segmentDuration / 2,
@@ -182,29 +155,15 @@ export const useSegmentHandlers = (
         );
         const newEndTime = newStartTime + segmentDuration;
 
-        // Calculate how much the segment moved
-        const segmentTimeShift = newStartTime - segment.startTime;
-
-        // Move segment and shift audio times by the same amount
+        // ALWAYS sync audio times to match video segment times
+        // This prevents mismatch issues during video processing
         updateSegment(segmentId, {
           startTime: newStartTime,
           endTime: newEndTime,
           audioInput: {
             ...segment.audioInput,
-            startTime:
-              segment.audioInput.startTime !== undefined
-                ? Math.max(0, Math.min(
-                    segment.audioInput.duration ?? Infinity,
-                    segment.audioInput.startTime + segmentTimeShift
-                  ))
-                : undefined,
-            endTime:
-              segment.audioInput.endTime !== undefined
-                ? Math.max(0, Math.min(
-                    segment.audioInput.duration ?? Infinity,
-                    segment.audioInput.endTime + segmentTimeShift
-                  ))
-                : undefined,
+            startTime: newStartTime,
+            endTime: newEndTime,
           },
         });
       }

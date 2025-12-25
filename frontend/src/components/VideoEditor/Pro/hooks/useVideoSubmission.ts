@@ -126,15 +126,15 @@ export const useVideoSubmission = (
       console.log('RAW SEGMENTS FROM STORE:', JSON.stringify(segments, null, 2));
 
       // Build segments data for API
-      // IMPORTANT: Audio crop times must ALWAYS be set for Sync.so to work correctly
-      // If not explicitly set, default to segment video times (audio matches video)
+      // CRITICAL: Audio crop times MUST match video segment times for proper sync
+      // This prevents "remap" issues where output video duration doesn't match input
       const segmentsData = segments.map(seg => {
-        // Default audio crop times to segment times if not set
-        // This ensures Sync.so knows exactly which portion of audio to use
-        const audioStartTime = seg.audioInput.startTime ?? seg.startTime;
-        const audioEndTime = seg.audioInput.endTime ?? seg.endTime;
+        // ALWAYS force audio crop times to match video segment times
+        // This ensures the audio portion exactly corresponds to the video segment
+        const audioStartTime = seg.startTime;
+        const audioEndTime = seg.endTime;
 
-        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime}`);
+        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
 
         return {
           startTime: seg.startTime,
@@ -321,20 +321,20 @@ export const useVideoSubmission = (
       }
 
       // Step 2: Build segments data with audio URLs
-      // IMPORTANT: Audio crop times must ALWAYS be set for Sync.so to work correctly
-      // If not explicitly set, default to segment video times (audio matches video)
+      // CRITICAL: Audio crop times MUST match video segment times for proper sync
+      // This prevents "remap" issues where output video duration doesn't match input
       const segmentsData = segments.map(seg => {
         const audioUrl = audioUrlMap.get(seg.audioInput.refId);
         if (!audioUrl) {
           throw new Error(`No audio URL for segment ${seg.id}`);
         }
 
-        // Default audio crop times to segment times if not set
-        // This ensures Sync.so knows exactly which portion of audio to use
-        const audioStartTime = seg.audioInput.startTime ?? seg.startTime;
-        const audioEndTime = seg.audioInput.endTime ?? seg.endTime;
+        // ALWAYS force audio crop times to match video segment times
+        // This ensures the audio portion exactly corresponds to the video segment
+        const audioStartTime = seg.startTime;
+        const audioEndTime = seg.endTime;
 
-        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime}`);
+        console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
 
         return {
           startTime: seg.startTime,
