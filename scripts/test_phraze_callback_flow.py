@@ -137,12 +137,16 @@ def main():
     print("=" * 80)
     print()
 
+    editor_phraze_url = f"https://editor.phraze.so/editor/embedded?token={token}"
     railway_url = f"https://frontend-production-b02b.up.railway.app/editor/embedded?token={token}"
     local_url = f"http://localhost:3001/editor/embedded?token={token}"
 
     print("📋 Test URLs:")
     print()
-    print("Railway Frontend (recommended):")
+    print("🌟 Editor.phraze.so (PRODUCTION - recommended):")
+    print(f"{editor_phraze_url}")
+    print()
+    print("Railway Frontend (backup):")
     print(f"{railway_url}")
     print()
     print("Local Frontend (if running):")
@@ -158,7 +162,7 @@ def main():
     print("3. ✅ Editor job created in database")
     print("4. ✅ JWT token generated")
     print()
-    print("5. 🌐 Open the Railway Frontend URL above in your browser")
+    print("5. 🌐 Open the editor.phraze.so URL above in your browser")
     print("6. 🎬 Edit the video and submit the job")
     print("7. 👀 Watch your Phraze.so terminal for callbacks:")
     print()

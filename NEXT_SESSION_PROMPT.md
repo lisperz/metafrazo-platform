@@ -1,216 +1,199 @@
-# Next Session Context - Phraze.so Integration
+# Next Session Context - MetaFrazo Platform
 
-**Last Updated**: December 25, 2025
-**Current Status**: **Phase 4 COMPLETE - Full Phraze.so Integration Working End-to-End**
+**Last Updated**: December 26, 2025
+**Current Status**: **Phase 4 COMPLETE - Full Production Integration with editor.phraze.so**
 
 ---
 
-## What Was Completed This Session (Dec 25, 2025)
+## What Was Completed This Session (Dec 26, 2025)
 
-### 1. Phraze.so Callback Integration - COMPLETE ✅
-**Problem**: MetaFrazo sent callbacks via POST, but Phraze.so only handled POST for job creation.
+### 1. Fixed editor.phraze.so API URL Detection ✅
+**Problem**: Frontend worked on Railway URL but failed on `editor.phraze.so` with "VALIDATION_FAILED" error.
 
-**Solution**: Modified Phraze.so's `/api/open/editor-jobs` endpoint to handle both:
-- Job creation (when request has `user_id` + `video_url`)
-- Callbacks (when request has `job_id` + `status`)
+**Root Cause**: Frontend `api.ts` only detected Railway URLs, not phraze.so domains.
 
-**File Modified**: `/Users/zhuchen/Downloads/cadence/src/app/api/open/editor-jobs/route.ts`
-- Added status mapping: `'started' → 'processing'` to match database constraints
-- Added callback detection logic
-- Added comprehensive logging for debugging
+**Solution**: Modified `frontend/src/services/api.ts`:
+```typescript
+const isProduction = typeof window !== 'undefined' && (
+  window.location.hostname.includes('railway.app') ||
+  window.location.hostname.includes('phraze.so')  // ← Added this
+);
+```
 
-### 2. Fixed Segment Audio Timing Issue ✅
-**Problem**: Output video duration didn't match input because audio crop times didn't match video segment times.
+**Result**: `editor.phraze.so` now correctly calls Railway backend instead of itself.
 
-**Root Cause**: When segments were dragged/resized, audio `endTime` was using audio file duration instead of video segment `endTime`.
+### 2. Updated Test Script for editor.phraze.so ✅
+**File**: `scripts/test_phraze_callback_flow.py`
 
-**Solution**: Force audio times to ALWAYS match video segment times in:
+**Changes**:
+- Added `editor.phraze.so` as primary production URL
+- Kept Railway URL as backup
+- Updated documentation to reference editor.phraze.so
+
+**Output URLs**:
+1. **Production**: `https://editor.phraze.so/editor/embedded?token=...` (recommended)
+2. **Backup**: `https://frontend-production-b02b.up.railway.app/editor/embedded?token=...`
+3. **Local**: `http://localhost:3001/editor/embedded?token=...`
+
+### 3. Created Phraze.so Editor Jobs Implementation Plan ✅
+**Purpose**: Enable Phraze.so users to upload videos for AI editing.
+
+**Document**: `/Users/zhuchen/Downloads/cadence/EDITOR_JOBS_IMPLEMENTATION_PLAN.md`
+
+**Key Features**:
+- Video upload to S3
+- JWT token generation
+- Redirect to editor.phraze.so
+- Job status tracking (pending → editing → processing → completed)
+- Download completed videos from S3
+
+**Implementation Status**: **Documented, ready for implementation in Phraze.so repo**
+
+---
+
+## Current Production URLs
+
+### MetaFrazo Platform (Railway)
+- **Frontend**: https://frontend-production-b02b.up.railway.app
+- **Backend**: https://backend-production-268a.up.railway.app
+- **Embedded Editor**: https://editor.phraze.so (Cloudflare subdomain → Railway frontend)
+
+### Phraze.so Platform
+- **Main Site**: https://phraze.so
+- **Editor Subdomain**: https://editor.phraze.so (points to MetaFrazo Railway frontend)
+- **Callback Endpoint**: https://phraze.so/api/open/editor-jobs (or ngrok in testing)
+
+---
+
+## Complete Working Flow (End-to-End)
+
+### From Phraze.so:
+1. User creates editor job in Phraze.so → Stores in MySQL
+2. Phraze.so generates JWT token → Includes job_id, video_url, callback_url
+3. User redirected to `https://editor.phraze.so/editor/embedded?token=...`
+
+### In MetaFrazo:
+4. MetaFrazo validates JWT token (RS256 with Phraze public key)
+5. User edits video → Adds audio segments, sets erasure areas
+6. User submits → MetaFrazo uploads audio to S3
+7. Celery worker processes → Sync.so lip-sync → GhostCut text removal
+8. MetaFrazo sends callbacks to Phraze.so callback URL:
+   - `status: 'started'` → Phraze updates to `'processing'`
+   - `status: 'completed'` → Phraze updates with `output_url`
+
+### Back to Phraze.so:
+9. Phraze.so database updated with job status and output video URL
+10. User downloads completed video from S3
+
+---
+
+## Key Technical Achievements
+
+### ✅ Segment Audio Timing Fix (Dec 25)
+**Critical Fix**: Audio crop times now ALWAYS match video segment times to prevent output duration mismatches.
+
+**Enforced in**:
 - `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` - At submission
 - `frontend/src/components/VideoEditor/Pro/hooks/useSegmentHandlers.ts` - During drag/resize
 - `frontend/src/store/segmentsStore.ts` - During segment split
 
-**Result**: Output video duration now matches input segment duration perfectly (no more "remap" issues).
+### ✅ Callback System (Dec 25)
+- POST/PUT callbacks handled by Phraze.so `/api/open/editor-jobs`
+- Status mapping: `started` → `processing` (database constraint)
+- Automatic timestamps for `started_at`, `completed_at`, `callback_received_at`
 
-### 3. Database Schema Fixes ✅
-- Created `scripts/fix_railway_db.py` to add missing columns:
-  - `segments_data`, `job_metadata`, `is_embedded_job`, `is_pro_job`
-- Removed NOT NULL constraint from `user_id` for embedded jobs
-- Created embedded user with ID `03139de3-8cc6-4702-a2fd-048dff642ccb`
-
-### 4. Local Testing Infrastructure ✅
-- Created `scripts/test_phraze_callback_flow.py` for end-to-end testing
-- Set up ngrok testing with local Phraze.so instance
-- Created comprehensive documentation:
-  - `docs/PHRAZE_CALLBACK_FIX_SUMMARY.md`
-  - `docs/TESTING_PHRAZE_INTEGRATION.md`
-  - `docs/CALLBACK_SETUP_GUIDE.md`
-  - `docs/LOCAL_TESTING_GUIDE.md`
-  - `examples/phraze-callback-endpoint.js`
-
----
-
-## Current State - What Works
-
-### ✅ Complete End-to-End Flow
-1. **Phraze.so creates editing job** → Stores in MySQL database
-2. **Phraze.so generates JWT token** → Includes job_id, video_url, callback_url
-3. **User opens embedded editor** → MetaFrazo validates JWT token
-4. **User edits video** → Adds audio segments, adjusts timing
-5. **User submits job** → MetaFrazo processes with Sync.so
-6. **MetaFrazo sends callbacks**:
-   - `status: 'started'` → Phraze.so updates to `'processing'`
-   - `status: 'completed'` → Phraze.so updates with `output_url`
-7. **Phraze.so database updated** → Job shows completed with output video URL
-
-### ✅ Video Processing
-- Sync.so lip-sync processing working
-- GhostCut text removal working (when erasure areas added)
-- Two-phase processing (lip-sync → text removal)
-- Output videos uploaded to S3
-- Processing time tracked correctly
-
-### ✅ Callback System
-- POST callbacks handled correctly
-- PUT callbacks handled correctly (legacy)
-- Status mapping working (`started` → `processing`)
-- Timestamps set automatically (`started_at`, `completed_at`)
-- Error handling for failed jobs
-
----
-
-## Architecture Overview
-
-### System Components
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Phraze.so (Next.js + MySQL)                                 │
-│  - Creates editor jobs in database                           │
-│  - Generates JWT tokens (RS256)                              │
-│  - Receives callbacks via /api/open/editor-jobs              │
-└────────────────────────┬────────────────────────────────────┘
-                         │
-                         │ JWT Token
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│  MetaFrazo (FastAPI + PostgreSQL + Redis)                   │
-│  Frontend: https://frontend-production-b02b.up.railway.app   │
-│  Backend:  https://backend-production-268a.up.railway.app    │
-│  - Validates JWT tokens                                      │
-│  - Processes videos (Sync.so + GhostCut)                     │
-│  - Sends callbacks to Phraze.so                              │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Processing Flow
-```
-User → Embedded Editor → Submit Job
-                           ↓
-                    Upload Audio to S3
-                           ↓
-                    Sync.so Lip-Sync
-                           ↓
-          (if erasure areas) → GhostCut Text Removal
-                           ↓
-                    Upload Output to S3
-                           ↓
-              Send Callback to Phraze.so (POST)
-                           ↓
-              Phraze.so Updates Job Status
-```
-
----
-
-## Key Files Reference
-
-### MetaFrazo Platform
-| File | Description |
-|------|-------------|
-| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission (forces audio times = video times) |
-| `frontend/src/components/VideoEditor/Pro/hooks/useSegmentHandlers.ts` | Drag/resize handlers (syncs audio times) |
-| `frontend/src/store/segmentsStore.ts` | Segment store (syncs audio times on split) |
-| `backend/api/routes/embedded/routes.py` | Embedded API routes (job submission) |
-| `backend/workers/embedded_tasks.py` | Celery tasks (processing + callbacks) |
-| `scripts/test_phraze_callback_flow.py` | End-to-end testing script |
-| `scripts/fix_railway_db.py` | Database schema fix script |
-| `scripts/create_embedded_user.py` | Create embedded user script |
-
-### Phraze.so (Cadence Repo)
-| File | Description |
-|------|-------------|
-| `/Users/zhuchen/Downloads/cadence/src/app/api/open/editor-jobs/route.ts` | Callback endpoint (handles POST/PUT) |
+### ✅ Multi-Domain Support (Dec 26)
+- Railway URL: `frontend-production-b02b.up.railway.app`
+- Phraze.so subdomain: `editor.phraze.so`
+- Both call same Railway backend API
 
 ---
 
 ## Environment Variables (Railway Backend)
 
-### Production Configuration ✓
-- `ENVIRONMENT=production` - Enables JWT signature verification
-- `PHRAZE_PUBLIC_KEY` - RSA public key from Phraze.so for JWT validation
-- `CALLBACK_HMAC_SECRET` - Shared secret for callback signature validation
-- `DATABASE_URL` - PostgreSQL on Railway
-- `REDIS_URL` - Redis on Railway
-- `AWS_*` - S3 credentials for video upload
-- `SYNC_API_KEY` - Sync.so API key for lip-sync
-- `GHOSTCUT_*` - GhostCut API keys for text removal
-- `FRONTEND_URL` - https://frontend-production-b02b.up.railway.app
-- `CORS_ORIGINS` - Includes phraze.so domain
+### Production Configuration
+```bash
+ENVIRONMENT=production
+PHRAZE_PUBLIC_KEY=<RSA public key from Phraze.so>
+CALLBACK_HMAC_SECRET=<shared secret>
+DATABASE_URL=<PostgreSQL on Railway>
+REDIS_URL=<Redis on Railway>
+AWS_REGION=us-east-2
+AWS_ACCESS_KEY_ID=<S3 credentials>
+AWS_SECRET_ACCESS_KEY=<S3 credentials>
+AWS_S3_BUCKET=taylorswiftnyu
+SYNC_API_KEY=<Sync.so API key>
+GHOSTCUT_API_KEY=<GhostCut API key>
+GHOSTCUT_API_SECRET=<GhostCut API secret>
+CORS_ORIGINS=https://phraze.so,https://frontend-production-b02b.up.railway.app,https://editor.phraze.so
+```
 
 ---
 
-## Local Testing with Phraze.so
+## Testing
 
-### Setup
-1. **Start Phraze.so locally**:
-   ```bash
-   cd /Users/zhuchen/Downloads/cadence
-   npm run dev  # Runs on localhost:3000
-   ```
+### Local Testing with Phraze.so
+```bash
+# Terminal 1: Start Phraze.so
+cd /Users/zhuchen/Downloads/cadence
+npm run dev  # localhost:3000
 
-2. **Start ngrok tunnel**:
-   ```bash
-   ngrok http 3000
-   # Copy the https URL (e.g., https://abc123.ngrok.io)
-   ```
+# Terminal 2: Start ngrok
+ngrok http 3000  # Copy the HTTPS URL
 
-3. **Run test script**:
-   ```bash
-   cd /Users/zhuchen/Downloads/metafrazo-platform
-   python3 scripts/test_phraze_callback_flow.py https://abc123.ngrok.io
-   ```
+# Terminal 3: Run test script
+cd /Users/zhuchen/Downloads/metafrazo-platform
+python3 scripts/test_phraze_callback_flow.py https://YOUR-NGROK-URL.ngrok.io
 
-4. **Open Railway URL** from script output and test the workflow
+# Open the editor.phraze.so URL from script output
+```
 
-### Testing Workflow
-- Script creates job in Phraze.so database
-- Generates JWT token for that job
-- Outputs Railway frontend URL with token
-- Open URL → Edit video → Submit
-- Watch Phraze.so terminal for callbacks
-- Verify database updates with job status and output URL
+### Production Testing
+```bash
+# Just run the test script with Phraze.so production URL
+python3 scripts/test_phraze_callback_flow.py https://phraze.so
+```
 
 ---
 
-## Important Notes for Next Session
+## Key Files
 
-### Segment Audio Timing (CRITICAL)
-**ALWAYS ensure audio crop times match video segment times** to prevent output duration mismatches.
+### MetaFrazo Platform (This Repo)
+| File | Purpose |
+|------|---------|
+| `frontend/src/services/api.ts` | API URL detection (Railway + phraze.so) |
+| `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` | Job submission with audio timing fix |
+| `backend/api/routes/embedded/routes.py` | Embedded API routes |
+| `backend/workers/embedded_tasks.py` | Celery tasks for processing + callbacks |
+| `backend/auth/phraze/validator.py` | JWT token validation |
+| `scripts/test_phraze_callback_flow.py` | End-to-end testing script |
 
-This is enforced in:
-- Submission (`useVideoSubmission.ts`)
-- Drag/resize (`useSegmentHandlers.ts`)
-- Split (`segmentsStore.ts`)
+### Phraze.so Platform (Cadence Repo)
+| File | Purpose |
+|------|---------|
+| `/Users/zhuchen/Downloads/cadence/src/app/api/open/editor-jobs/route.ts` | Callback endpoint (POST/PUT) |
+| `/Users/zhuchen/Downloads/cadence/EDITOR_JOBS_IMPLEMENTATION_PLAN.md` | Complete implementation guide for Editor Jobs feature |
 
-### Callback Endpoint Design
-Phraze.so's `/api/open/editor-jobs` endpoint handles both:
-- **Job creation**: `POST` with `user_id` + `video_url`
-- **Callbacks**: `POST` or `PUT` with `job_id` + `status`
+---
 
-Status mapping: `started` → `processing` (database constraint)
+## Next Steps
 
-### Database Constraints
-Phraze.so database has CHECK constraint `valid_status`:
-- Allowed values: `'pending'`, `'editing'`, `'processing'`, `'completed'`, `'failed'`
-- MetaFrazo must map status values accordingly
+### For Phraze.so (Cadence Repo)
+**Implement Editor Jobs Feature** using `/Users/zhuchen/Downloads/cadence/EDITOR_JOBS_IMPLEMENTATION_PLAN.md`:
+1. Create JWT keys (`keys/phraze_private.pem`, `keys/phraze_public.pem`)
+2. Create upload endpoint (`src/app/api/translator/upload-video/route.ts`)
+3. Create job management endpoint (`src/app/api/translator/editor-jobs/route.ts`)
+4. Create frontend page (`src/app/dashboard/translator/editor-jobs/page.tsx`)
+5. Update navigation (`src/app/dashboard/translator/layout.tsx`)
+
+**Estimated Time**: 2-3 hours
+
+### For MetaFrazo (This Repo)
+**Status**: ✅ Complete - No changes needed
+
+The platform is production-ready and working end-to-end with both:
+- `https://editor.phraze.so` (production)
+- `https://frontend-production-b02b.up.railway.app` (backup)
 
 ---
 
@@ -218,27 +201,8 @@ Phraze.so database has CHECK constraint `valid_status`:
 
 - **Repository**: https://github.com/lisperz/metafrazo-platform
 - **Branch**: `main`
-- **Latest Commit**: Fix segment audio times to always match video segment times
+- **Latest Changes**: Fixed API URL detection for editor.phraze.so domain
 
 ---
 
-## Next Steps (If Needed)
-
-### Production Deployment
-1. Deploy updated Phraze.so code to production (phraze.so domain)
-2. Ensure production Phraze.so generates JWT tokens with correct callback URL
-3. Test end-to-end with production Phraze.so instance
-
-### Monitoring
-- Monitor callback logs in Phraze.so production
-- Monitor job processing in MetaFrazo Railway logs
-- Track job completion rates and processing times
-
-### Optional Enhancements
-- Add webhook retry logic for failed callbacks
-- Add job status polling endpoint for Phraze.so
-- Add processing progress updates (currently only start/complete/failed)
-
----
-
-*All core functionality is working. Integration is production-ready.*
+*All MetaFrazo platform functionality is complete and production-ready.*

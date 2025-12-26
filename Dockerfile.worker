@@ -20,9 +20,10 @@ RUN useradd --create-home --shell /bin/bash app
 # Set work directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Copy requirements and install Python dependencies with retry and timeout
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir --timeout=120 --retries=3 -r requirements.txt
 
 # Copy application code
 COPY backend/ ./backend/
