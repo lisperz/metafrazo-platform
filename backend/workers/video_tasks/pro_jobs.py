@@ -18,8 +18,106 @@ from sqlalchemy.orm.attributes import flag_modified
 from backend.models.job import VideoJob, JobStatus
 from backend.config import settings
 from backend.workers.video_tasks.helpers import get_db
+from backend.auth.phraze import PhrazeCallbackService
 
 logger = logging.getLogger(__name__)
+
+
+async def send_phraze_callback(job: VideoJob, output_url: str) -> None:
+    """
+    Send callback to Phraze.so when embedded job completes
+    """
+    if not job.is_embedded_job:
+        return
+
+    job_metadata = job.job_metadata or {}
+    callback_url = job_metadata.get("phraze_callback_url")
+    phraze_job_id = job_metadata.get("phraze_job_id")
+
+    if not callback_url or not phraze_job_id:
+        logger.warning(f"Job {job.id}: Missing callback info for embedded job")
+        return
+
+    # Calculate processing time
+    processing_time = 0
+    if job.started_at and job.completed_at:
+        processing_time = int((job.completed_at - job.started_at).total_seconds())
+
+    logger.info(f"Job {job.id}: Sending completion callback to {callback_url}")
+
+    try:
+        success = await PhrazeCallbackService.notify_job_completed(
+            callback_url=callback_url,
+            job_id=phraze_job_id,
+            output_url=output_url,
+            processing_time_seconds=processing_time,
+            metadata={
+                "internal_job_id": str(job.id),
+                "processing_type": job_metadata.get("processing_type", "lip_sync")
+            }
+        )
+        if success:
+            logger.info(f"Job {job.id}: Phraze callback sent successfully")
+        else:
+            logger.error(f"Job {job.id}: Phraze callback failed")
+    except Exception as e:
+        logger.error(f"Job {job.id}: Error sending Phraze callback: {e}")
+
+
+async def send_phraze_failure_callback(job: VideoJob, error_message: str) -> None:
+    """
+    Send failure callback to Phraze.so when embedded job fails
+    """
+    if not job.is_embedded_job:
+        return
+
+    job_metadata = job.job_metadata or {}
+    callback_url = job_metadata.get("phraze_callback_url")
+    phraze_job_id = job_metadata.get("phraze_job_id")
+
+    if not callback_url or not phraze_job_id:
+        return
+
+    logger.info(f"Job {job.id}: Sending failure callback to {callback_url}")
+
+    try:
+        await PhrazeCallbackService.notify_job_failed(
+            callback_url=callback_url,
+            job_id=phraze_job_id,
+            error_code="PROCESSING_FAILED",
+            error_message=error_message,
+            metadata={"internal_job_id": str(job.id)}
+        )
+    except Exception as e:
+        logger.error(f"Job {job.id}: Error sending Phraze failure callback: {e}")
+
+
+async def send_phraze_started_callback(job: VideoJob) -> None:
+    """
+    Send 'started' callback to Phraze.so when job starts processing
+    This changes status from 'editing' to 'processing' in Phraze.so
+    """
+    if not job.is_embedded_job:
+        return
+
+    job_metadata = job.job_metadata or {}
+    callback_url = job_metadata.get("phraze_callback_url")
+    phraze_job_id = job_metadata.get("phraze_job_id")
+
+    if not callback_url or not phraze_job_id:
+        return
+
+    logger.info(f"Job {job.id}: Sending 'started' callback to {callback_url}")
+
+    try:
+        await PhrazeCallbackService.notify_job_started(
+            callback_url=callback_url,
+            job_id=phraze_job_id,
+            metadata={"internal_job_id": str(job.id)}
+        )
+        logger.info(f"Job {job.id}: Phraze 'started' callback sent successfully")
+    except Exception as e:
+        logger.error(f"Job {job.id}: Error sending Phraze started callback: {e}")
 
 
 async def check_and_update_single_job(job: VideoJob) -> None:
@@ -44,7 +142,7 @@ async def check_and_update_single_job(job: VideoJob) -> None:
         if status == 'COMPLETED':
             await handle_completed_job(job, status_result, s3_service)
         elif status in ['REJECTED', 'FAILED']:
-            handle_failed_job(job, status_result)
+            await handle_failed_job(job, status_result)
         elif status == 'PROCESSING':
             logger.info(f"Job {job.id}: Still processing on Sync.so")
 
@@ -152,6 +250,9 @@ async def handle_completed_job(
                             f"Job {job.id}: Successfully completed at {sync_result_url}"
                         )
 
+                        # Send callback to Phraze.so for embedded jobs
+                        await send_phraze_callback(job, sync_result_url)
+
                 finally:
                     # Clean up temp file
                     if os.path.exists(tmp_path):
@@ -163,7 +264,7 @@ async def handle_completed_job(
                 )
 
 
-def handle_failed_job(job: VideoJob, status_result: dict) -> None:
+async def handle_failed_job(job: VideoJob, status_result: dict) -> None:
     """
     Handle a failed Pro job
     """
@@ -173,6 +274,10 @@ def handle_failed_job(job: VideoJob, status_result: dict) -> None:
     job.status = JobStatus.FAILED.value
     job.progress_message = f"Lip-sync generation failed: {error_msg}"
     job.error_message = error_msg
+    job.completed_at = datetime.utcnow()
+
+    # Send failure callback to Phraze.so for embedded jobs
+    await send_phraze_failure_callback(job, error_msg)
 
 
 async def check_all_pro_jobs(pro_jobs: List[VideoJob]) -> None:
@@ -545,6 +650,9 @@ async def handle_ghostcut_completion(
                                 f"Job {job.id}: Successfully completed with chained processing. "
                                 f"Final result: {final_url}"
                             )
+
+                            # Send callback to Phraze.so for embedded jobs
+                            await send_phraze_callback(job, final_url)
                         else:
                             logger.error(f"Job {job.id}: Failed to upload final result to S3")
                             job.status = JobStatus.FAILED.value
