@@ -388,10 +388,13 @@ export const useVideoSubmission = (
       });
 
       console.log('Embedded submission response:', response);
-      setSubmissionProgress('Job submitted! Processing...');
+      setSubmissionProgress('Job submitted! Redirecting to jobs page...');
 
-      // Poll for job status until completion
-      await pollJobStatus(response.job_id, embeddedToken, callbackUrl);
+      // Redirect immediately after job is submitted - don't wait for completion
+      // User can track job status on the jobs page
+      setTimeout(() => {
+        redirectToPhraze(undefined, callbackUrl);
+      }, 1500);
 
     } catch (error: unknown) {
       console.error('Error submitting embedded video:', error);
@@ -401,7 +404,7 @@ export const useVideoSubmission = (
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Processing failed: ${errorMessage}`);
     }
-  }, [embeddedToken, phrazeJobId, segments, effects, pollJobStatus, callbackUrl]);
+  }, [embeddedToken, phrazeJobId, segments, effects, callbackUrl]);
 
   return {
     isSubmitting,

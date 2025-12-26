@@ -24,7 +24,7 @@ import { useEffectsStore, VideoEffect } from '../../store/effectsStore';
 import { useNavigate } from 'react-router-dom';
 import { calculateProgressPercentage, formatTime as formatTimeUtil, clampTime, handleTimelineInteraction } from '../../utils/timelineUtils';
 import { API_ENDPOINTS } from './GhostCut/constants/editorConstants';
-import { processVideo as processEmbeddedVideo, getJobStatus as getEmbeddedJobStatus, redirectToPhraze } from '../../services/embeddedApi';
+import { processVideo as processEmbeddedVideo, redirectToPhraze } from '../../services/embeddedApi';
 
 interface GhostCutVideoEditorProps {
   videoUrl: string;
@@ -626,40 +626,13 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
                 });
 
                 console.log('Embedded processing started:', result);
-                setSubmissionProgress('Processing started! Waiting for completion...');
+                setSubmissionProgress('Job submitted! Redirecting to jobs page...');
 
-                // Poll for job completion
-                const pollJobStatus = async () => {
-                  try {
-                    const status = await getEmbeddedJobStatus(result.job_id, embeddedToken);
-
-                    if (status.status === 'completed') {
-                      setSubmissionProgress('Processing completed! Redirecting to jobs page...');
-                      setTimeout(() => {
-                        redirectToPhraze(undefined, callbackUrl);
-                      }, 1500);
-                    } else if (status.status === 'failed') {
-                      setIsSubmitting(false);
-                      setSubmissionProgress('');
-                      alert(`Processing failed: ${status.error_message || 'Unknown error'}`);
-                      // Redirect back to jobs page on failure
-                      setTimeout(() => {
-                        redirectToPhraze('PROCESSING_FAILED', callbackUrl);
-                      }, 1500);
-                    } else {
-                      // Still processing, continue polling
-                      setSubmissionProgress(`Processing... ${status.progress}%`);
-                      setTimeout(pollJobStatus, 5000);
-                    }
-                  } catch (err) {
-                    console.error('Error polling job status:', err);
-                    setIsSubmitting(false);
-                    setSubmissionProgress('');
-                  }
-                };
-
-                // Start polling after a delay
-                setTimeout(pollJobStatus, 3000);
+                // Redirect immediately after job is submitted - don't wait for completion
+                // User can track job status on the jobs page
+                setTimeout(() => {
+                  redirectToPhraze(undefined, callbackUrl);
+                }, 1500);
 
               } catch (error: any) {
                 console.error('Embedded submission error:', error);
