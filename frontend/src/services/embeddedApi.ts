@@ -248,14 +248,34 @@ export const getTokenFromUrl = (): string | null => {
 };
 
 /**
- * Redirect to phraze.so with optional error code
+ * Extract base URL from callback URL
+ * Callback URL is like: http://localhost:3000/api/open/editor-jobs
+ * We want: http://localhost:3000
  */
-export const redirectToPhraze = (errorCode?: string): void => {
-  const baseUrl = 'https://phraze.so';
+const getBaseUrlFromCallback = (callbackUrl: string | null): string => {
+  if (!callbackUrl) {
+    return 'https://phraze.so';
+  }
+  try {
+    const url = new URL(callbackUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return 'https://phraze.so';
+  }
+};
+
+/**
+ * Redirect to the originating Phraze.so instance's translator jobs page
+ * Uses the callback URL from JWT to determine the correct host
+ */
+export const redirectToPhraze = (errorCode?: string, callbackUrl?: string | null): void => {
+  const baseUrl = getBaseUrlFromCallback(callbackUrl || null);
+  const targetPath = '/dashboard/translator/jobs';
+
   if (errorCode) {
-    window.location.href = `${baseUrl}/dashboard?error=${errorCode}`;
+    window.location.href = `${baseUrl}${targetPath}?error=${errorCode}`;
   } else {
-    window.location.href = baseUrl;
+    window.location.href = `${baseUrl}${targetPath}`;
   }
 };
 

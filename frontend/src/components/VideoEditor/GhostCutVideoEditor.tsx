@@ -24,7 +24,7 @@ import { useEffectsStore, VideoEffect } from '../../store/effectsStore';
 import { useNavigate } from 'react-router-dom';
 import { calculateProgressPercentage, formatTime as formatTimeUtil, clampTime, handleTimelineInteraction } from '../../utils/timelineUtils';
 import { API_ENDPOINTS } from './GhostCut/constants/editorConstants';
-import { processVideo as processEmbeddedVideo, getJobStatus as getEmbeddedJobStatus } from '../../services/embeddedApi';
+import { processVideo as processEmbeddedVideo, getJobStatus as getEmbeddedJobStatus, redirectToPhraze } from '../../services/embeddedApi';
 
 interface GhostCutVideoEditorProps {
   videoUrl: string;
@@ -34,6 +34,7 @@ interface GhostCutVideoEditorProps {
   embeddedMode?: boolean;
   embeddedToken?: string;
   phrazeJobId?: string;
+  callbackUrl?: string | null;
 }
 
 interface TimelineEffect {
@@ -52,6 +53,7 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
   embeddedMode = false,
   embeddedToken,
   phrazeJobId,
+  callbackUrl,
 }) => {
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
@@ -632,14 +634,18 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
                     const status = await getEmbeddedJobStatus(result.job_id, embeddedToken);
 
                     if (status.status === 'completed') {
-                      setSubmissionProgress('Processing completed successfully!');
+                      setSubmissionProgress('Processing completed! Redirecting to jobs page...');
                       setTimeout(() => {
-                        if (onBack) onBack();
-                      }, 2000);
+                        redirectToPhraze(undefined, callbackUrl);
+                      }, 1500);
                     } else if (status.status === 'failed') {
                       setIsSubmitting(false);
                       setSubmissionProgress('');
                       alert(`Processing failed: ${status.error_message || 'Unknown error'}`);
+                      // Redirect back to jobs page on failure
+                      setTimeout(() => {
+                        redirectToPhraze('PROCESSING_FAILED', callbackUrl);
+                      }, 1500);
                     } else {
                       // Still processing, continue polling
                       setSubmissionProgress(`Processing... ${status.progress}%`);

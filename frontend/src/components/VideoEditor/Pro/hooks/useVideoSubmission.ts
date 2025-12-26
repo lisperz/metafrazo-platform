@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffectsStore } from '../../../../store/effectsStore';
 import { useSegmentsStore } from '../../../../store/segmentsStore';
 import { API_ENDPOINTS } from '../constants/editorConstants';
-import { processVideo, getJobStatus, uploadAudioFile } from '../../../../services/embeddedApi';
+import { processVideo, getJobStatus, uploadAudioFile, redirectToPhraze } from '../../../../services/embeddedApi';
 
 export interface UseVideoSubmissionReturn {
   /** Whether submission is in progress */
@@ -27,6 +27,7 @@ export interface VideoSubmissionOptions {
   embeddedMode?: boolean;
   embeddedToken?: string;
   phrazeJobId?: string;
+  callbackUrl?: string | null;
 }
 
 /**
@@ -50,7 +51,7 @@ export const useVideoSubmission = (
   const { effects } = useEffectsStore();
   const { segments } = useSegmentsStore();
 
-  const { videoFile, videoUrl, embeddedMode, embeddedToken, phrazeJobId } = normalizedOptions;
+  const { videoFile, videoUrl, embeddedMode, embeddedToken, phrazeJobId, callbackUrl } = normalizedOptions;
 
   /**
    * Handles Pro video submission
@@ -221,7 +222,7 @@ export const useVideoSubmission = (
    * Poll for job status until completion or failure
    * Note: For combined processing (lip-sync + text removal), this can take 20+ minutes
    */
-  const pollJobStatus = useCallback(async (jobId: string, token: string): Promise<void> => {
+  const pollJobStatus = useCallback(async (jobId: string, token: string, cbUrl?: string | null): Promise<void> => {
     const MAX_POLLS = 360; // 30 minutes at 5 second intervals (for combined processing)
     const POLL_INTERVAL = 5000; // 5 seconds
 
@@ -231,15 +232,13 @@ export const useVideoSubmission = (
         console.log(`Job status poll ${i + 1}:`, status);
 
         if (status.status === 'completed') {
-          setSubmissionProgress('Processing completed successfully!');
+          setSubmissionProgress('Processing completed! Redirecting to jobs page...');
           setIsSubmitting(false);
 
-          // Show success message with output URL
-          if (status.output_url) {
-            alert(`Processing completed!\n\nOutput video: ${status.output_url}`);
-          } else {
-            alert('Processing completed successfully!');
-          }
+          // Redirect back to jobs page after short delay
+          setTimeout(() => {
+            redirectToPhraze(undefined, cbUrl);
+          }, 1500);
           return;
         }
 
@@ -247,6 +246,10 @@ export const useVideoSubmission = (
           setSubmissionProgress('');
           setIsSubmitting(false);
           alert(`Processing failed: ${status.error_message || 'Unknown error'}`);
+          // Redirect back to jobs page on failure too
+          setTimeout(() => {
+            redirectToPhraze('PROCESSING_FAILED', cbUrl);
+          }, 1500);
           return;
         }
 
@@ -264,10 +267,12 @@ export const useVideoSubmission = (
       }
     }
 
-    // Timeout after max polls - job continues in background
-    setSubmissionProgress('');
+    // Timeout after max polls - job continues in background, redirect to jobs page
+    setSubmissionProgress('Processing continues in background. Redirecting...');
     setIsSubmitting(false);
-    alert('Your video is still processing in the background. The phraze.so callback will be sent when complete.');
+    setTimeout(() => {
+      redirectToPhraze(undefined, cbUrl);
+    }, 1500);
   }, []);
 
   /**
@@ -386,7 +391,7 @@ export const useVideoSubmission = (
       setSubmissionProgress('Job submitted! Processing...');
 
       // Poll for job status until completion
-      await pollJobStatus(response.job_id, embeddedToken);
+      await pollJobStatus(response.job_id, embeddedToken, callbackUrl);
 
     } catch (error: unknown) {
       console.error('Error submitting embedded video:', error);
@@ -396,7 +401,7 @@ export const useVideoSubmission = (
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Processing failed: ${errorMessage}`);
     }
-  }, [embeddedToken, phrazeJobId, segments, effects, pollJobStatus]);
+  }, [embeddedToken, phrazeJobId, segments, effects, pollJobStatus, callbackUrl]);
 
   return {
     isSubmitting,

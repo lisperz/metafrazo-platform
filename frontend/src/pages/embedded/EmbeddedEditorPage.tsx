@@ -188,9 +188,9 @@ const EmbeddedEditorPage: React.FC = () => {
                 backgroundColor: '#0A47F2',
                 '&:hover': { backgroundColor: '#1D4ED8' },
               }}
-              onClick={() => redirectToPhraze()}
+              onClick={() => redirectToPhraze(undefined, tokenData?.callback_url)}
             >
-              Return to Phraze
+              Return to Jobs
             </Button>
           </Box>
 
@@ -216,7 +216,8 @@ const EmbeddedEditorPage: React.FC = () => {
             embeddedMode={true}
             embeddedToken={token!}
             phrazeJobId={tokenData.job_id!}
-            onBack={() => redirectToPhraze()}
+            callbackUrl={tokenData.callback_url}
+            onBack={() => redirectToPhraze(undefined, tokenData.callback_url)}
           />
         ) : (
           /* Render Normal Video Editor for free/normal users */
@@ -226,7 +227,8 @@ const EmbeddedEditorPage: React.FC = () => {
             embeddedMode={true}
             embeddedToken={token!}
             phrazeJobId={tokenData.job_id!}
-            onBack={() => redirectToPhraze()}
+            callbackUrl={tokenData.callback_url}
+            onBack={() => redirectToPhraze(undefined, tokenData.callback_url)}
           />
         )}
       </Box>

@@ -26,6 +26,7 @@ interface ProVideoEditorProps {
   embeddedMode?: boolean;
   embeddedToken?: string;
   phrazeJobId?: string;
+  callbackUrl?: string | null;
 }
 
 interface TimelineEffect {
@@ -44,6 +45,7 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   embeddedMode = false,
   embeddedToken,
   phrazeJobId,
+  callbackUrl,
 }) => {
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
@@ -61,6 +63,7 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
     embeddedMode,
     embeddedToken,
     phrazeJobId,
+    callbackUrl,
   });
 
   // Get segments store with undo/redo
