@@ -630,8 +630,13 @@ const GhostCutVideoEditor: React.FC<GhostCutVideoEditorProps> = ({
 
                 // Redirect immediately after job is submitted - don't wait for completion
                 // User can track job status on the jobs page
+                // Include phraze_job_id so Phraze.so can update status to "processing"
                 setTimeout(() => {
-                  redirectToPhraze(undefined, callbackUrl);
+                  redirectToPhraze({
+                    callbackUrl,
+                    jobSubmitted: true,
+                    phrazeJobId: result.phraze_job_id,
+                  });
                 }, 1500);
 
               } catch (error: any) {

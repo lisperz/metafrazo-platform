@@ -265,18 +265,51 @@ const getBaseUrlFromCallback = (callbackUrl: string | null): string => {
 };
 
 /**
+ * Options for redirecting back to Phraze.so
+ */
+export interface RedirectOptions {
+  errorCode?: string;
+  callbackUrl?: string | null;
+  jobSubmitted?: boolean;
+  phrazeJobId?: string;
+}
+
+/**
  * Redirect to the originating Phraze.so instance's translator jobs page
  * Uses the callback URL from JWT to determine the correct host
+ * If jobSubmitted is true, includes parameters to trigger status update
  */
-export const redirectToPhraze = (errorCode?: string, callbackUrl?: string | null): void => {
-  const baseUrl = getBaseUrlFromCallback(callbackUrl || null);
-  const targetPath = '/dashboard/translator/jobs';
-
-  if (errorCode) {
-    window.location.href = `${baseUrl}${targetPath}?error=${errorCode}`;
+export const redirectToPhraze = (
+  errorCodeOrOptions?: string | RedirectOptions,
+  callbackUrl?: string | null
+): void => {
+  // Handle both old signature (errorCode, callbackUrl) and new signature (options)
+  let options: RedirectOptions;
+  if (typeof errorCodeOrOptions === 'string') {
+    options = { errorCode: errorCodeOrOptions, callbackUrl };
+  } else if (errorCodeOrOptions) {
+    options = errorCodeOrOptions;
   } else {
-    window.location.href = `${baseUrl}${targetPath}`;
+    options = { callbackUrl };
   }
+
+  const baseUrl = getBaseUrlFromCallback(options.callbackUrl || null);
+  const targetPath = '/dashboard/translator/jobs';
+  const params = new URLSearchParams();
+
+  if (options.errorCode) {
+    params.set('error', options.errorCode);
+  }
+
+  // Include job submission info so Phraze.so can update status immediately
+  if (options.jobSubmitted && options.phrazeJobId) {
+    params.set('job_submitted', 'true');
+    params.set('job_id', options.phrazeJobId);
+  }
+
+  const queryString = params.toString();
+  const url = queryString ? `${baseUrl}${targetPath}?${queryString}` : `${baseUrl}${targetPath}`;
+  window.location.href = url;
 };
 
 export default getEmbeddedApi;
