@@ -79,6 +79,12 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   initialSegments,
   initialEffects,
 }) => {
+  // Log props on mount for debugging
+  console.log('[ProVideoEditor] Mounted with props:');
+  console.log('  - embeddedMode:', embeddedMode);
+  console.log('  - initialSegments:', initialSegments);
+  console.log('  - initialEffects:', initialEffects);
+
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);

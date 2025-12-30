@@ -56,6 +56,8 @@ const EmbeddedEditorPage: React.FC = () => {
       // Validate token with backend
       const validation = await validateAccess(token);
       console.log('[EmbeddedEditor] Validation response:', validation);
+      console.log('[EmbeddedEditor] segments_data from validation:', validation.segments_data);
+      console.log('[EmbeddedEditor] effects_data from validation:', validation.effects_data);
 
       if (!validation.valid) {
         setError({
@@ -205,6 +207,11 @@ const EmbeddedEditorPage: React.FC = () => {
   // Render editor when ready - choose between Normal or Pro based on subscription tier
   if (loadingState === 'ready' && tokenData && videoReady) {
     const isProUser = tokenData.is_pro_user;
+
+    console.log('[EmbeddedEditor] Rendering editor with:');
+    console.log('  - isProUser:', isProUser);
+    console.log('  - segments_data:', tokenData.segments_data);
+    console.log('  - effects_data:', tokenData.effects_data);
 
     return (
       <Box sx={{ minHeight: '100vh', width: '100%' }}>

@@ -49,10 +49,15 @@ async def validate_access(
         )
 
         # Log if re-editing with saved segments
+        logger.info(f"🔍 Checking segments_data: {token_payload.segments_data is not None}")
+        logger.info(f"🔍 Checking effects_data: {token_payload.effects_data is not None}")
         if token_payload.segments_data:
-            logger.info(f"Re-editing mode: {len(token_payload.segments_data)} saved segments")
+            logger.info(f"✅ Re-editing mode: {len(token_payload.segments_data)} saved segments")
+            logger.info(f"   First segment: {token_payload.segments_data[0] if token_payload.segments_data else 'None'}")
+        else:
+            logger.info("⚠️ No segments_data found in token payload")
         if token_payload.effects_data:
-            logger.info(f"Re-editing mode: {len(token_payload.effects_data)} saved effects")
+            logger.info(f"✅ Re-editing mode: {len(token_payload.effects_data)} saved effects")
 
         return ValidationResponse(
             valid=True,
