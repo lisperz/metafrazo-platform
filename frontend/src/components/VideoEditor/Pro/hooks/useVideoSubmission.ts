@@ -237,7 +237,10 @@ export const useVideoSubmission = (
 
           // Redirect back to jobs page after short delay
           setTimeout(() => {
-            redirectToPhraze(undefined, cbUrl);
+            redirectToPhraze({
+              jobSubmitted: true,
+              callbackUrl: cbUrl,
+            });
           }, 1500);
           return;
         }
@@ -271,7 +274,10 @@ export const useVideoSubmission = (
     setSubmissionProgress('Processing continues in background. Redirecting...');
     setIsSubmitting(false);
     setTimeout(() => {
-      redirectToPhraze(undefined, cbUrl);
+      redirectToPhraze({
+        jobSubmitted: true,
+        callbackUrl: cbUrl,
+      });
     }, 1500);
   }, []);
 
@@ -392,8 +398,13 @@ export const useVideoSubmission = (
 
       // Redirect immediately after job is submitted - don't wait for completion
       // User can track job status on the jobs page
+      // Include jobSubmitted flag so Phraze.so can update status to "processing"
       setTimeout(() => {
-        redirectToPhraze(undefined, callbackUrl);
+        redirectToPhraze({
+          jobSubmitted: true,
+          phrazeJobId: phrazeJobId,
+          callbackUrl: callbackUrl,
+        });
       }, 1500);
 
     } catch (error: unknown) {
