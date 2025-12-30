@@ -238,9 +238,10 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
     console.log('=== RESTORING INITIAL EFFECTS ===');
     console.log('Initial effects to restore:', initialEffects.length);
 
-    // Add each saved effect to the effects store
+    // Add each saved effect to the effects store with a generated id
     initialEffects.forEach((savedEffect) => {
       addEffect({
+        id: `effect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: savedEffect.type,
         startTime: savedEffect.startTime,
         endTime: savedEffect.endTime,
