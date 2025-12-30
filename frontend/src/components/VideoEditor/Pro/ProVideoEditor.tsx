@@ -79,12 +79,6 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   initialSegments,
   initialEffects,
 }) => {
-  // Log props on mount for debugging
-  console.log('[ProVideoEditor] Mounted with props:');
-  console.log('  - embeddedMode:', embeddedMode);
-  console.log('  - initialSegments:', initialSegments);
-  console.log('  - initialEffects:', initialEffects);
-
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
@@ -179,14 +173,34 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   // Track if initial segments have been restored to avoid re-running
   const [initialSegmentsRestored, setInitialSegmentsRestored] = useState(false);
 
+  // Log once on mount
+  useEffect(() => {
+    console.log('[ProVideoEditor] Component mounted - checking initialSegments');
+    console.log('  initialSegments:', initialSegments);
+    console.log('  initialSegments length:', initialSegments?.length ?? 0);
+  }, []); // Empty deps - only run on mount
+
   // Restore initial segments for re-editing (only once when component mounts)
   useEffect(() => {
-    if (initialSegmentsRestored || !initialSegments || initialSegments.length === 0) {
+    console.log('[ProVideoEditor] Segment restoration check:', {
+      initialSegmentsRestored,
+      hasInitialSegments: !!initialSegments,
+      segmentsLength: initialSegments?.length ?? 0
+    });
+
+    if (initialSegmentsRestored) {
+      console.log('[ProVideoEditor] Already restored, skipping');
+      return;
+    }
+
+    if (!initialSegments || initialSegments.length === 0) {
+      console.log('[ProVideoEditor] No initial segments to restore');
       return;
     }
 
     console.log('=== RESTORING INITIAL SEGMENTS ===');
     console.log('Initial segments to restore:', initialSegments.length);
+    console.log('First segment:', JSON.stringify(initialSegments[0], null, 2));
 
     // Clear existing segments first
     clearAllSegments();
