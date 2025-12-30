@@ -218,6 +218,8 @@ const EmbeddedEditorPage: React.FC = () => {
             phrazeJobId={tokenData.job_id!}
             callbackUrl={tokenData.callback_url}
             onBack={() => redirectToPhraze(undefined, tokenData.callback_url)}
+            initialSegments={tokenData.segments_data}
+            initialEffects={tokenData.effects_data}
           />
         ) : (
           /* Render Normal Video Editor for free/normal users */

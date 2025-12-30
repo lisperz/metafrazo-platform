@@ -38,6 +38,7 @@ async def validate_access(
     """
     Validate access from phraze.so redirect.
     Called when user lands on editor.phraze.so.
+    Includes saved segments_data and effects_data for re-editing support.
     """
     try:
         token_payload = await PhrazeValidator.validate_embedded_request(request, token)
@@ -47,6 +48,12 @@ async def validate_access(
             f"job {token_payload.job_id}, tier {token_payload.subscription_tier}"
         )
 
+        # Log if re-editing with saved segments
+        if token_payload.segments_data:
+            logger.info(f"Re-editing mode: {len(token_payload.segments_data)} saved segments")
+        if token_payload.effects_data:
+            logger.info(f"Re-editing mode: {len(token_payload.effects_data)} saved effects")
+
         return ValidationResponse(
             valid=True,
             user_id=token_payload.user_id,
@@ -55,7 +62,9 @@ async def validate_access(
             callback_url=token_payload.callback_url,
             subscription_tier=token_payload.subscription_tier,
             is_pro_user=token_payload.is_pro_user,
-            message="Access granted"
+            message="Access granted",
+            segments_data=token_payload.segments_data,
+            effects_data=token_payload.effects_data
         )
 
     except HTTPException:
@@ -128,12 +137,14 @@ async def process_video(
             f"Created embedded job {internal_job_id} for phraze job {token_payload.job_id}"
         )
 
-        # Send "started" callback to phraze.so
+        # Send "started" callback to phraze.so with segments/effects for re-editing
         background_tasks.add_task(
             send_started_callback,
             token_payload.callback_url,
             token_payload.job_id,
-            str(internal_job_id)
+            str(internal_job_id),
+            processing_config.segments,  # Include segments for re-editing
+            processing_config.effects,   # Include effects for re-editing
         )
 
         # Start processing in background

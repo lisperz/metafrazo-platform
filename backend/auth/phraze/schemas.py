@@ -34,6 +34,9 @@ class PhrazeTokenPayload(BaseModel):
     subscription_tier: str = Field(default="normal", description="User subscription tier: free, normal, pro, enterprise")
     iat: int = Field(..., description="Issued at timestamp")
     exp: int = Field(..., description="Expiration timestamp")
+    # Re-editing support: saved segments and effects from previous session
+    segments_data: Optional[list[dict]] = Field(None, description="Previously saved segments for re-editing")
+    effects_data: Optional[list[dict]] = Field(None, description="Previously saved effects for re-editing")
 
     @property
     def user_id(self) -> str:
@@ -74,6 +77,9 @@ class ValidationResponse(BaseModel):
     subscription_tier: Optional[str] = None
     is_pro_user: bool = False
     message: str
+    # Re-editing support: saved segments and effects from previous session
+    segments_data: Optional[list[dict]] = None
+    effects_data: Optional[list[dict]] = None
 
 
 class ProcessRequest(BaseModel):

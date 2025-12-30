@@ -27,13 +27,23 @@ logger = logging.getLogger(__name__)
 async def send_started_callback(
     callback_url: str,
     phraze_job_id: str,
-    internal_job_id: str
+    internal_job_id: str,
+    segments_data: Optional[list] = None,
+    effects_data: Optional[list] = None
 ):
-    """Send started callback to phraze.so"""
+    """Send started callback to phraze.so with segments/effects for re-editing"""
+    metadata = {"internal_job_id": internal_job_id}
+
+    # Include segments and effects data so Phraze.so can save them for re-editing
+    if segments_data:
+        metadata["segments_data"] = segments_data
+    if effects_data:
+        metadata["effects_data"] = effects_data
+
     await PhrazeCallbackService.notify_job_started(
         callback_url=callback_url,
         job_id=phraze_job_id,
-        metadata={"internal_job_id": internal_job_id}
+        metadata=metadata
     )
 
 
