@@ -4,10 +4,10 @@
 
 export interface AudioInput {
   refId: string;                         // Unique ID for audio file mapping
-  file: File;                            // Audio file object
-  url?: string;                          // S3 URL after upload (optional before upload)
-  fileName: string;                      // Original filename for display
-  fileSize: number;                      // File size in bytes
+  file?: File;                           // Audio file object (optional for re-editing with URL)
+  url?: string;                          // S3 URL after upload (required for re-editing)
+  fileName?: string;                     // Original filename for display (optional for re-editing)
+  fileSize?: number;                     // File size in bytes (optional for re-editing)
   duration?: number;                     // Audio duration in seconds (if available)
   startTime?: number;                    // Optional crop start (seconds)
   endTime?: number;                      // Optional crop end (seconds)
