@@ -48,17 +48,6 @@ async def validate_access(
             f"job {token_payload.job_id}, tier {token_payload.subscription_tier}"
         )
 
-        # Log if re-editing with saved segments
-        logger.info(f"🔍 Checking segments_data: {token_payload.segments_data is not None}")
-        logger.info(f"🔍 Checking effects_data: {token_payload.effects_data is not None}")
-        if token_payload.segments_data:
-            logger.info(f"✅ Re-editing mode: {len(token_payload.segments_data)} saved segments")
-            logger.info(f"   First segment: {token_payload.segments_data[0] if token_payload.segments_data else 'None'}")
-        else:
-            logger.info("⚠️ No segments_data found in token payload")
-        if token_payload.effects_data:
-            logger.info(f"✅ Re-editing mode: {len(token_payload.effects_data)} saved effects")
-
         return ValidationResponse(
             valid=True,
             user_id=token_payload.user_id,
@@ -67,9 +56,7 @@ async def validate_access(
             callback_url=token_payload.callback_url,
             subscription_tier=token_payload.subscription_tier,
             is_pro_user=token_payload.is_pro_user,
-            message="Access granted",
-            segments_data=token_payload.segments_data,
-            effects_data=token_payload.effects_data
+            message="Access granted"
         )
 
     except HTTPException:

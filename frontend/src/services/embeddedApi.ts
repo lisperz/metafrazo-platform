@@ -6,32 +6,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { getApiBaseUrl } from './api';
 
-// Segment data structure for re-editing
-export interface SavedSegmentData {
-  startTime: number;
-  endTime: number;
-  audioInput: {
-    refId: string;
-    url?: string;
-    startTime: number;
-    endTime: number;
-  };
-  label?: string;
-}
-
-// Effect data structure for re-editing
-export interface SavedEffectData {
-  type: 'erasure' | 'protection' | 'text';
-  startTime: number;
-  endTime: number;
-  region: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-}
-
 // Types for embedded API
 export interface ValidationResponse {
   valid: boolean;
@@ -42,9 +16,6 @@ export interface ValidationResponse {
   subscription_tier: string | null;
   is_pro_user: boolean;
   message: string;
-  // Re-editing support: saved segments and effects from previous session
-  segments_data: SavedSegmentData[] | null;
-  effects_data: SavedEffectData[] | null;
 }
 
 export interface EffectData {

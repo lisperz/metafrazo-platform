@@ -56,8 +56,6 @@ const EmbeddedEditorPage: React.FC = () => {
       // Validate token with backend
       const validation = await validateAccess(token);
       console.log('[EmbeddedEditor] Validation response:', validation);
-      console.log('[EmbeddedEditor] segments_data from validation:', validation.segments_data);
-      console.log('[EmbeddedEditor] effects_data from validation:', validation.effects_data);
 
       if (!validation.valid) {
         setError({
@@ -208,10 +206,7 @@ const EmbeddedEditorPage: React.FC = () => {
   if (loadingState === 'ready' && tokenData && videoReady) {
     const isProUser = tokenData.is_pro_user;
 
-    console.log('[EmbeddedEditor] Rendering editor with:');
-    console.log('  - isProUser:', isProUser);
-    console.log('  - segments_data:', tokenData.segments_data);
-    console.log('  - effects_data:', tokenData.effects_data);
+    console.log('[EmbeddedEditor] Rendering editor, isProUser:', isProUser);
 
     return (
       <Box sx={{ minHeight: '100vh', width: '100%' }}>
@@ -225,8 +220,6 @@ const EmbeddedEditorPage: React.FC = () => {
             phrazeJobId={tokenData.job_id!}
             callbackUrl={tokenData.callback_url}
             onBack={() => redirectToPhraze(undefined, tokenData.callback_url)}
-            initialSegments={tokenData.segments_data}
-            initialEffects={tokenData.effects_data}
           />
         ) : (
           /* Render Normal Video Editor for free/normal users */

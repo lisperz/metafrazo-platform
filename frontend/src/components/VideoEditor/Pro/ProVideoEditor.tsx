@@ -4,7 +4,6 @@ import { Box } from '@mui/material';
 import { useEffectsStore } from '../../../store/effectsStore';
 import { useNavigate } from 'react-router-dom';
 import { useSegmentsStore } from '../../../store/segmentsStore';
-import { VideoSegment, SEGMENT_COLORS } from '../../../types/segments';
 import SegmentDialog from './SegmentDialog';
 import {
   useVideoHandlers,
@@ -19,32 +18,6 @@ import {
   TimelineSection,
 } from './components';
 
-// Saved segment data structure for re-editing
-interface SavedSegmentData {
-  startTime: number;
-  endTime: number;
-  audioInput: {
-    refId: string;
-    url?: string;
-    startTime: number;
-    endTime: number;
-  };
-  label?: string;
-}
-
-// Saved effect data structure for re-editing
-interface SavedEffectData {
-  type: 'erasure' | 'protection' | 'text';
-  startTime: number;
-  endTime: number;
-  region: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
-}
-
 interface ProVideoEditorProps {
   videoUrl: string;
   videoFile: File | null;
@@ -54,9 +27,6 @@ interface ProVideoEditorProps {
   embeddedToken?: string;
   phrazeJobId?: string;
   callbackUrl?: string | null;
-  // Re-editing support: restore saved segments and effects
-  initialSegments?: SavedSegmentData[] | null;
-  initialEffects?: SavedEffectData[] | null;
 }
 
 interface TimelineEffect {
@@ -76,8 +46,6 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
   embeddedToken,
   phrazeJobId,
   callbackUrl,
-  initialSegments,
-  initialEffects,
 }) => {
   const navigate = useNavigate();
   const playerRef = useRef<ReactPlayer>(null);
@@ -169,88 +137,6 @@ const ProVideoEditor: React.FC<ProVideoEditorProps> = ({
     console.log('Total segments:', segments.length);
     console.log('Segments:', segments);
   }, [segments]);
-
-  // Track if initial segments have been restored to avoid re-running
-  const [initialSegmentsRestored, setInitialSegmentsRestored] = useState(false);
-
-  // Log once on mount
-  useEffect(() => {
-    console.log('[ProVideoEditor] Component mounted - checking initialSegments');
-    console.log('  initialSegments:', initialSegments);
-    console.log('  initialSegments length:', initialSegments?.length ?? 0);
-  }, []); // Empty deps - only run on mount
-
-  // Restore initial segments for re-editing (only once when component mounts)
-  useEffect(() => {
-    console.log('[ProVideoEditor] Segment restoration check:', {
-      initialSegmentsRestored,
-      hasInitialSegments: !!initialSegments,
-      segmentsLength: initialSegments?.length ?? 0
-    });
-
-    if (initialSegmentsRestored) {
-      console.log('[ProVideoEditor] Already restored, skipping');
-      return;
-    }
-
-    if (!initialSegments || initialSegments.length === 0) {
-      console.log('[ProVideoEditor] No initial segments to restore');
-      return;
-    }
-
-    console.log('=== RESTORING INITIAL SEGMENTS ===');
-    console.log('Initial segments to restore:', initialSegments.length);
-    console.log('First segment:', JSON.stringify(initialSegments[0], null, 2));
-
-    // Clear existing segments first
-    clearAllSegments();
-
-    // Convert saved segment data to full VideoSegment format
-    initialSegments.forEach((savedSeg, index) => {
-      const segment: VideoSegment = {
-        id: `segment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        startTime: savedSeg.startTime,
-        endTime: savedSeg.endTime,
-        audioInput: {
-          refId: savedSeg.audioInput.refId,
-          url: savedSeg.audioInput.url,
-          startTime: savedSeg.audioInput.startTime,
-          endTime: savedSeg.audioInput.endTime,
-          // Note: File objects are not available for re-editing - URLs are used instead
-        },
-        label: savedSeg.label || `Segment ${index + 1}`,
-        color: SEGMENT_COLORS[index % SEGMENT_COLORS.length],
-        createdAt: Date.now(),
-      };
-      addSegment(segment);
-    });
-
-    console.log('Initial segments restored successfully');
-    setInitialSegmentsRestored(true);
-  }, [initialSegments, initialSegmentsRestored, clearAllSegments, addSegment]);
-
-  // Restore initial effects for re-editing
-  useEffect(() => {
-    if (!initialEffects || initialEffects.length === 0) {
-      return;
-    }
-
-    console.log('=== RESTORING INITIAL EFFECTS ===');
-    console.log('Initial effects to restore:', initialEffects.length);
-
-    // Add each saved effect to the effects store with a generated id
-    initialEffects.forEach((savedEffect) => {
-      addEffect({
-        id: `effect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: savedEffect.type,
-        startTime: savedEffect.startTime,
-        endTime: savedEffect.endTime,
-        region: savedEffect.region,
-      });
-    });
-
-    console.log('Initial effects restored successfully');
-  }, []); // Only run once on mount
 
   // Synchronize timeline effects with main effects store (NOT including segments)
   useEffect(() => {
