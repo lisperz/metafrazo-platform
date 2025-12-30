@@ -93,7 +93,7 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
           setEndTime(segment.endTime);
           setLabel(segment.label || '');
           setSelectedAudioRefId(segment.audioInput.refId);
-          setAudioFile(segment.audioInput.file);
+          setAudioFile(segment.audioInput.file ?? null);
           setAudioSelectionMode('existing');
 
           // Load audio crop settings if they exist
