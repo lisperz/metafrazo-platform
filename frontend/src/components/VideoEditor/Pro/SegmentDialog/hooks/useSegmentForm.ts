@@ -40,7 +40,7 @@ export const useSegmentForm = ({
           setStartTime(segment.startTime);
           setEndTime(segment.endTime);
           setLabel(segment.label || '');
-          setAudioFile(segment.audioInput.file);
+          setAudioFile(segment.audioInput.file ?? null);
 
           // Check if audio crop times are explicitly set (not null/undefined)
           // Use && (AND) logic: either startTime OR endTime must be explicitly set
