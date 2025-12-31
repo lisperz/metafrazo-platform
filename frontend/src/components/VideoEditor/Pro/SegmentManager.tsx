@@ -161,7 +161,7 @@ const SegmentManager: React.FC<SegmentManagerProps> = ({
                   </Typography>
                 </Box>
                 <Typography variant="caption" color="text.secondary">
-                  {(segment.audioInput.fileSize / 1024 / 1024).toFixed(2)} MB
+                  {((segment.audioInput.fileSize ?? 0) / 1024 / 1024).toFixed(2)} MB
                 </Typography>
               </Box>
 
