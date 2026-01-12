@@ -1,376 +1,261 @@
-# Speaker-Selection Feature - Task Breakdown
+# Speaker-Selection Feature - Implementation Plan
 
-**Document Created**: January 9, 2026
-**Feature**: Sync.so Speaker Selection Integration
-**API Reference**: https://docs.sync.so/developer-guides/speaker-selection
+**Last Updated**: January 12, 2026
+**Feature**: Per-Segment Speaker Selection via Bounding Boxes
+**API Reference**: https://docs.sync.so/api-reference/api/generate-api/create
 
 ---
 
 ## Executive Summary
 
-The speaker-selection feature allows users to specify which person in a multi-person video should be lip-synced. This is critical for videos with multiple faces on screen.
+Enable users to select different speakers for different segments in multi-person videos using fixed bounding boxes per segment.
 
-### Three Implementation Methods
+### How It Works
 
-| Method | Use Case | Complexity | UX Quality |
-|--------|----------|------------|------------|
-| **Auto-detect** | Single-speaker videos | Low | Good |
-| **Manual Selection** | Multi-person videos | Medium | Best |
-| **Bounding Boxes** | Pre-computed face tracking | High | Best (batch) |
+```
+Video: |--- Segment 1 (Girl) ---|--- Gap ---|--- Segment 2 (Man) ---|
+       Frame 0-300              301-449      450-700
 
-**Recommended Approach**: Start with **Manual Selection** (frame + click coordinates) as it provides the best balance of UX and implementation effort.
+Bounding Boxes Array:
+[
+  [500,200,700,450], // Frame 0-300: Girl's face (fixed box)
+  [500,200,700,450], // ... same box repeated
+  null,              // Frame 301-449: No lip-sync
+  null,              // ... null for gap
+  [100,150,300,400], // Frame 450-700: Man's face (fixed box)
+  [100,150,300,400], // ... same box repeated
+]
+```
+
+**Result**: Single API call, per-segment speaker control, no video stitching needed.
 
 ---
 
-## Current Architecture Analysis
-
-### Existing Integration Points
-
-```
-Frontend (ProVideoEditor.tsx)
-    ↓
-useVideoSubmission hook
-    ↓
-API: /api/v1/video-editors/pro-sync-process
-    ↓
-SyncSegmentsService.create_segmented_lipsync()
-    ↓
-Sync.so API: POST /v2/generate
-```
-
-### Current Payload Structure (sync_segments_service.py:118-125)
-
-```python
-payload = {
-    "model": "lipsync-2-pro",
-    "input": input_array,
-    "segments": segments_array,
-    "options": {
-        "sync_mode": "remap"
-    }
-}
-```
-
-### What Needs to Be Added
-
-```python
-payload = {
-    "model": "lipsync-2-pro",
-    "input": input_array,
-    "segments": segments_array,
-    "options": {
-        "sync_mode": "remap",
-        "active_speaker_detection": {       # NEW
-            "auto_detect": False,           # NEW
-            "frame_number": 240,            # NEW - from user selection
-            "coordinates": [640, 360]       # NEW - click point on face
-        }
-    }
-}
-```
-
----
-
-## Task Breakdown
-
-### Phase 1: Backend API Enhancement
-
-#### Task 1.1: Update Pydantic Schemas
-**File**: `backend/auth/phraze/schemas.py` or new `backend/api/schemas/speaker_selection.py`
-
-- [ ] Create `ActiveSpeakerDetection` schema:
-  ```python
-  class ActiveSpeakerDetection(BaseModel):
-      auto_detect: bool = False
-      frame_number: Optional[int] = None
-      coordinates: Optional[List[float]] = None  # [x, y]
-      bounding_boxes: Optional[List[Optional[List[float]]]] = None
-  ```
-- [ ] Update `ProcessRequest` to include speaker selection
-
-#### Task 1.2: Update SyncSegmentsService
-**File**: `backend/services/sync_segments_service.py`
-
-- [ ] Add `speaker_selection` parameter to `create_segmented_lipsync()`
-- [ ] Include `active_speaker_detection` in API payload when provided
-- [ ] Add validation: either `auto_detect=True` OR (`frame_number` + `coordinates`)
-- [ ] Add logging for speaker selection parameters
-
-#### Task 1.3: Update API Route
-**File**: `backend/api/routes/video_editors/` (find pro sync route)
-
-- [ ] Accept speaker selection data from frontend
-- [ ] Pass to SyncSegmentsService
-- [ ] Handle validation errors gracefully
-
----
-
-### Phase 2: Frontend - Video Frame Capture
-
-#### Task 2.1: Frame Extraction Utility
-**File**: `frontend/src/components/VideoEditor/Pro/utils/frameCapture.ts` (new)
-
-- [ ] Create function to capture current video frame as canvas/image
-- [ ] Calculate frame number from currentTime + fps
-- [ ] Handle different video formats and frame rates
-- [ ] Return frame data URL for display
-
-```typescript
-interface FrameCaptureResult {
-  frameNumber: number;
-  frameDataUrl: string;
-  videoWidth: number;
-  videoHeight: number;
-}
-
-async function captureCurrentFrame(
-  videoElement: HTMLVideoElement,
-  currentTime: number,
-  fps: number
-): Promise<FrameCaptureResult>
-```
-
-#### Task 2.2: Click Coordinate Handler
-**File**: `frontend/src/components/VideoEditor/Pro/utils/coordinateUtils.ts` (new)
-
-- [ ] Convert click position to video coordinates
-- [ ] Handle video scaling and aspect ratio
-- [ ] Account for letterboxing/pillarboxing
-- [ ] Normalize coordinates to original video dimensions
-
-```typescript
-interface ClickCoordinates {
-  x: number;  // Pixel X in original video dimensions
-  y: number;  // Pixel Y in original video dimensions
-}
-
-function convertClickToVideoCoordinates(
-  clickX: number,
-  clickY: number,
-  containerRect: DOMRect,
-  videoNaturalWidth: number,
-  videoNaturalHeight: number
-): ClickCoordinates
-```
-
----
-
-### Phase 3: Frontend - Speaker Selection UI
-
-#### Task 3.1: Speaker Selection Dialog Component
-**File**: `frontend/src/components/VideoEditor/Pro/components/SpeakerSelectionDialog.tsx` (new)
-
-- [ ] Modal dialog that appears when user needs to select speaker
-- [ ] Display captured video frame as static image
-- [ ] Clickable overlay to select face location
-- [ ] Visual feedback showing selected point
-- [ ] "Auto-detect" toggle option
-- [ ] Confirm/Cancel buttons
-
-```typescript
-interface SpeakerSelectionDialogProps {
-  open: boolean;
-  onClose: () => void;
-  frameDataUrl: string;
-  frameNumber: number;
-  videoWidth: number;
-  videoHeight: number;
-  onConfirm: (selection: SpeakerSelection) => void;
-}
-
-interface SpeakerSelection {
-  autoDetect: boolean;
-  frameNumber?: number;
-  coordinates?: [number, number];
-}
-```
-
-#### Task 3.2: Face Click Indicator Component
-**File**: `frontend/src/components/VideoEditor/Pro/components/FaceClickIndicator.tsx` (new)
-
-- [ ] Visual marker showing where user clicked
-- [ ] Animated circle/crosshair at click position
-- [ ] Color coding (e.g., green for valid face area)
-
-#### Task 3.3: Speaker Selection State Management
-**File**: `frontend/src/store/speakerSelectionStore.ts` (new)
-
-- [ ] Zustand store for speaker selection state
-- [ ] Store: `autoDetect`, `frameNumber`, `coordinates`
-- [ ] Actions: `setAutoDetect`, `setManualSelection`, `clearSelection`
-- [ ] Persist selection for current editing session
-
----
-
-### Phase 4: Integration & UX Flow
-
-#### Task 4.1: Add "Select Speaker" Button to Timeline/Header
-**File**: `frontend/src/components/VideoEditor/Pro/components/SubmitHeader.tsx`
-
-- [ ] Add "Select Speaker" button near segment controls
-- [ ] Show current selection status (Auto / Manual: Frame #X)
-- [ ] Visual indicator when speaker is selected
-
-#### Task 4.2: Trigger Speaker Selection Before Submit
-**File**: `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts`
-
-- [ ] Check if video likely has multiple faces (optional heuristic)
-- [ ] Prompt user for speaker selection if not set
-- [ ] Include speaker selection in submission payload
-- [ ] Handle validation: require selection for multi-face videos
-
-#### Task 4.3: Update Submission Payload
-**File**: `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts`
-
-- [ ] Add `speakerSelection` to submission data
-- [ ] Format for backend API:
-  ```typescript
-  speakerSelection: {
-    auto_detect: boolean;
-    frame_number?: number;
-    coordinates?: [number, number];
-  }
-  ```
-
----
-
-### Phase 5: Testing & Edge Cases
-
-#### Task 5.1: Test Cases
-- [ ] Single person video with auto-detect
-- [ ] Two people video with manual selection
-- [ ] Video with person entering/leaving frame
-- [ ] Small face in frame (accuracy check)
-- [ ] Different video resolutions (720p, 1080p, 4K)
-- [ ] Different aspect ratios (16:9, 4:3, vertical)
-
-#### Task 5.2: Error Handling
-- [ ] Handle case when no face detected at clicked coordinates
-- [ ] Retry mechanism with different frame
-- [ ] Fallback to auto-detect with user confirmation
-- [ ] Clear error messages for failed speaker detection
-
----
-
-## API Request/Response Examples
-
-### Request with Manual Selection
+## API Payload Structure
 
 ```json
 {
-  "model": "lipsync-2-pro",
+  "model": "lipsync-2",
   "input": [
-    { "type": "video", "url": "https://s3.../video.mp4" },
-    { "type": "audio", "url": "https://s3.../audio.wav", "refId": "audio-1" }
+    { "type": "video", "url": "https://..." },
+    { "type": "audio", "url": "https://...", "refId": "audio1" },
+    { "type": "audio", "url": "https://...", "refId": "audio2" }
   ],
   "segments": [
-    {
-      "startTime": 0.0,
-      "endTime": 15.0,
-      "audioInput": { "refId": "audio-1" }
-    }
+    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1" } },
+    { "startTime": 15.75, "endTime": 24.64, "audioInput": { "refId": "audio2" } }
   ],
   "options": {
-    "sync_mode": "remap",
     "active_speaker_detection": {
-      "auto_detect": false,
-      "frame_number": 240,
-      "coordinates": [640, 360]
+      "bounding_boxes": [
+        [500, 200, 700, 450],  // Segment 1 frames: Girl
+        // ... repeated for all segment 1 frames
+        null,                   // Gap frames: no lip-sync
+        // ... null for all gap frames
+        [100, 150, 300, 400]   // Segment 2 frames: Man
+        // ... repeated for all segment 2 frames
+      ]
     }
   }
 }
 ```
 
-### Request with Auto-Detect
+---
 
-```json
-{
-  "model": "lipsync-2-pro",
-  "input": [...],
-  "segments": [...],
-  "options": {
-    "sync_mode": "remap",
-    "active_speaker_detection": {
-      "auto_detect": true
-    }
-  }
+## UI Design
+
+### Per-Segment Speaker Selection
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Segment 1 Settings                                              │
+├─────────────────────────────────────────────────────────────────┤
+│  Time: 00:02:58 - 00:10:22    Audio: ✓ uploaded                 │
+│                                                                  │
+│  Speaker Selection:                                              │
+│  ┌────────────────────────┐                                     │
+│  │  [Video Frame]         │  ← Draw box on speaker's face       │
+│  │     ┌─────┐            │                                     │
+│  │     │ 👧  │ ← Box      │                                     │
+│  │     └─────┘            │                                     │
+│  └────────────────────────┘                                     │
+│  ○ Auto-detect  ● Manual box: [500, 200, 700, 450]              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Timeline with Speaker Indicators
+
+```
+Effect Track:
+┌──────────────────────┐         ┌──────────────────────┐
+│ Segment 1            │         │ Segment 2            │
+│ 00:02:58 - 00:10:22  │         │ 00:15:75 - 00:24:64  │
+│ 👧 Speaker: Girl     │         │ 👨 Speaker: Man      │
+└──────────────────────┘         └──────────────────────┘
+```
+
+---
+
+## Data Model
+
+### Frontend: Segment Interface
+
+```typescript
+interface VideoSegment {
+  id: string;
+  startTime: number;
+  endTime: number;
+  audioInput: AudioInput | null;
+
+  // NEW: Speaker bounding box
+  speakerBox?: {
+    x1: number; y1: number;  // Top-left
+    x2: number; y2: number;  // Bottom-right
+    method: 'auto' | 'manual';
+  } | null;
 }
 ```
+
+### Backend: Bounding Boxes Builder
+
+```python
+def build_bounding_boxes(video_fps: float, total_frames: int, segments: List[dict]) -> List:
+    """Build per-frame bounding boxes array from segments"""
+    boxes = [None] * total_frames
+
+    for segment in segments:
+        if segment.get('speakerBox'):
+            start_frame = int(segment['startTime'] * video_fps)
+            end_frame = int(segment['endTime'] * video_fps)
+            box = [
+                segment['speakerBox']['x1'],
+                segment['speakerBox']['y1'],
+                segment['speakerBox']['x2'],
+                segment['speakerBox']['y2']
+            ]
+            for frame in range(start_frame, end_frame + 1):
+                boxes[frame] = box
+
+    return boxes
+```
+
+---
+
+## 5-Day Implementation Plan
+
+### Day 1: Speaker Box Drawing Component
+
+**Goal**: Create reusable component for drawing speaker bounding box on video frame
+
+| Task | Description | Files |
+|------|-------------|-------|
+| 1.1 | Create `SpeakerBoxDrawer.tsx` component | `components/VideoEditor/Pro/components/` |
+| 1.2 | Reuse existing `react-rnd` for drag/resize | Similar to `DrawingRectangle.tsx` |
+| 1.3 | Add coordinate conversion (screen → video pixels) | `utils/coordinateUtils.ts` |
+| 1.4 | Create `speakerStore.ts` for state management | `store/speakerStore.ts` |
+
+**Deliverable**: Working component that draws resizable box on video frame
+
+---
+
+### Day 2: Segment Form Integration
+
+**Goal**: Add speaker selection UI to each segment's edit panel
+
+| Task | Description | Files |
+|------|-------------|-------|
+| 2.1 | Add "Speaker Selection" section to `SegmentForm` | `components/SegmentForm.tsx` |
+| 2.2 | Add speaker box modal/popover with video preview | `SpeakerSelectionModal.tsx` |
+| 2.3 | Update `VideoSegment` type with `speakerBox` field | `types/segments.ts` |
+| 2.4 | Update `segmentsStore` to handle speaker data | `store/segmentsStore.ts` |
+
+**Deliverable**: Users can draw speaker box for each segment
+
+---
+
+### Day 3: Backend Bounding Boxes Builder
+
+**Goal**: Convert segment speaker boxes to Sync.so bounding_boxes array
+
+| Task | Description | Files |
+|------|-------------|-------|
+| 3.1 | Add `build_bounding_boxes()` function | `services/sync_segments_service.py` |
+| 3.2 | Get video FPS and total frames (use ffprobe or video metadata) | `services/video_utils.py` |
+| 3.3 | Update API payload builder to include bounding_boxes | `sync_segments_service.py` |
+| 3.4 | Handle edge cases (no speaker box = auto-detect) | `sync_segments_service.py` |
+
+**Deliverable**: Backend generates correct bounding_boxes array for Sync.so API
+
+---
+
+### Day 4: Frontend-Backend Integration
+
+**Goal**: Connect frontend speaker selection to backend processing
+
+| Task | Description | Files |
+|------|-------------|-------|
+| 4.1 | Update `useVideoSubmission` to include speaker boxes | `hooks/useVideoSubmission.ts` |
+| 4.2 | Update embedded processing endpoint to accept speaker data | `api/routes/embedded/processing.py` |
+| 4.3 | Add speaker box validation (within video bounds) | Frontend + Backend |
+| 4.4 | Update Phraze callback to store speaker selection | `api/routes/embedded/routes.py` |
+
+**Deliverable**: End-to-end flow working with speaker selection
+
+---
+
+### Day 5: Testing & Polish
+
+**Goal**: Test all scenarios and fix edge cases
+
+| Task | Description | Notes |
+|------|-------------|-------|
+| 5.1 | Test: Single segment with speaker box | Basic case |
+| 5.2 | Test: Multiple segments, same speaker | Same box for all |
+| 5.3 | Test: Multiple segments, different speakers | Different boxes |
+| 5.4 | Test: Segment without speaker box (auto-detect fallback) | Graceful fallback |
+| 5.5 | Test: Various video resolutions | Coordinate accuracy |
+| 5.6 | UI polish: Speaker indicator on timeline | Visual feedback |
+
+**Deliverable**: Feature ready for production
 
 ---
 
 ## File Changes Summary
 
-### New Files to Create
+### New Files
+```
+frontend/src/components/VideoEditor/Pro/components/SpeakerBoxDrawer.tsx
+frontend/src/components/VideoEditor/Pro/components/SpeakerSelectionModal.tsx
+frontend/src/store/speakerStore.ts
+backend/services/video_utils.py (if needed for FPS detection)
+```
 
-| File | Purpose |
-|------|---------|
-| `frontend/.../utils/frameCapture.ts` | Video frame extraction |
-| `frontend/.../utils/coordinateUtils.ts` | Click-to-video coordinate conversion |
-| `frontend/.../components/SpeakerSelectionDialog.tsx` | UI for speaker selection |
-| `frontend/.../components/FaceClickIndicator.tsx` | Visual click marker |
-| `frontend/src/store/speakerSelectionStore.ts` | State management |
-| `backend/api/schemas/speaker_selection.py` | Pydantic schemas |
-
-### Existing Files to Modify
-
-| File | Changes |
-|------|---------|
-| `backend/services/sync_segments_service.py` | Add speaker selection to API call |
-| `frontend/.../hooks/useVideoSubmission.ts` | Include speaker selection in payload |
-| `frontend/.../components/SubmitHeader.tsx` | Add "Select Speaker" button |
-
----
-
-## Implementation Priority
-
-### MVP (Minimum Viable Product)
-1. Backend schema + service update (Task 1.1, 1.2, 1.3)
-2. Frame capture utility (Task 2.1)
-3. Coordinate conversion (Task 2.2)
-4. Basic dialog UI (Task 3.1)
-5. Submit integration (Task 4.3)
-
-### Enhanced Version
-1. Face click indicator (Task 3.2)
-2. State management (Task 3.3)
-3. UX improvements (Task 4.1, 4.2)
-4. Comprehensive testing (Task 5.1, 5.2)
+### Modified Files
+```
+frontend/src/types/segments.ts                    # Add speakerBox to VideoSegment
+frontend/src/store/segmentsStore.ts               # Handle speaker data
+frontend/src/components/VideoEditor/Pro/components/SegmentForm.tsx
+frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts
+backend/services/sync_segments_service.py         # Build bounding_boxes array
+backend/api/routes/embedded/processing.py         # Accept speaker data
+```
 
 ---
 
-## Estimated Effort
+## Risk & Mitigation
 
-| Phase | Tasks | Estimated Effort |
-|-------|-------|------------------|
-| Phase 1: Backend | 3 tasks | 2-3 hours |
-| Phase 2: Frame Utils | 2 tasks | 3-4 hours |
-| Phase 3: UI Components | 3 tasks | 4-6 hours |
-| Phase 4: Integration | 3 tasks | 3-4 hours |
-| Phase 5: Testing | 2 tasks | 2-3 hours |
-| **Total** | **13 tasks** | **14-20 hours** |
+| Risk | Mitigation |
+|------|------------|
+| Coordinate mismatch (UI vs video) | Test with multiple resolutions, add validation |
+| Large bounding_boxes array (long videos) | Optimize: only include non-null ranges |
+| FPS detection accuracy | Use video metadata or default to 30fps |
 
 ---
 
-## Questions to Clarify Before Implementation
+## Success Criteria
 
-1. **Should speaker selection be required or optional?**
-   - Current thinking: Optional, with auto-detect as default
-
-2. **Should we detect multiple faces and prompt user?**
-   - Could add face detection to determine if prompt is needed
-
-3. **Per-segment speaker selection or global?**
-   - Current API supports global only; per-segment would need multiple API calls
-
-4. **Should we store speaker selection for re-editing?**
-   - Would need to add to segments_data in database
-
----
-
-## References
-
-- [Sync.so Speaker Selection Docs](https://docs.sync.so/developer-guides/speaker-selection)
-- [Sync.so Segments API](https://docs.sync.so/developer-guides/segments)
-- Current integration: `backend/services/sync_segments_service.py`
-- Pro Editor: `frontend/src/components/VideoEditor/Pro/`
+- [ ] User can draw speaker box for each segment
+- [ ] Different segments can have different speakers
+- [ ] Backend generates correct bounding_boxes array
+- [ ] Sync.so API processes video with correct speaker per segment
+- [ ] Segments without speaker box fall back to auto-detect
