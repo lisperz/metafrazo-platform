@@ -30,6 +30,8 @@ import {
   ContentCut,
   AudioFile,
   Refresh,
+  Face,
+  AutoFixHigh,
 } from '@mui/icons-material';
 import {
   useSegmentsStore,
@@ -37,7 +39,7 @@ import {
   validateAudioFile,
   formatSegmentTime,
 } from '../../../store/segmentsStore';
-import { AudioInput, VideoSegment } from '../../../types/segments';
+import { AudioInput, VideoSegment, SpeakerBox } from '../../../types/segments';
 import { getSegmentOverlaps, formatOverlapWarning } from '../../../utils/segmentOverlapDetection';
 
 interface SegmentDialogProps {
@@ -46,6 +48,7 @@ interface SegmentDialogProps {
   editingSegmentId: string | null;
   videoDuration: number;
   currentTime: number;
+  onOpenSpeakerSelection?: (segmentId: string) => void;
 }
 
 const SegmentDialog: React.FC<SegmentDialogProps> = ({
@@ -54,6 +57,7 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
   editingSegmentId,
   videoDuration,
   currentTime,
+  onOpenSpeakerSelection,
 }) => {
   const {
     addSegment,
@@ -80,6 +84,10 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
   const [audioStartTime, setAudioStartTime] = useState<number | null>(null);
   const [audioEndTime, setAudioEndTime] = useState<number | null>(null);
 
+  // Speaker selection state
+  const [speakerMode, setSpeakerMode] = useState<'auto' | 'manual'>('auto');
+  const [speakerBox, setSpeakerBox] = useState<SpeakerBox | null>(null);
+
   // Initialize form when dialog opens
   useEffect(() => {
     if (open) {
@@ -102,6 +110,15 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
           setEnableAudioCrop(hasAudioCrop);
           setAudioStartTime(segment.audioInput.startTime ?? null);
           setAudioEndTime(segment.audioInput.endTime ?? null);
+
+          // Load speaker box settings if they exist
+          if (segment.speakerBox) {
+            setSpeakerMode(segment.speakerBox.method);
+            setSpeakerBox(segment.speakerBox);
+          } else {
+            setSpeakerMode('auto');
+            setSpeakerBox(null);
+          }
         }
       } else {
         // Add mode - use current time as start
@@ -115,6 +132,8 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
         setEnableAudioCrop(false);
         setAudioStartTime(null);
         setAudioEndTime(null);
+        setSpeakerMode('auto');
+        setSpeakerBox(null);
 
         // If there are existing audio files, default to using existing mode
         if (existingAudioFiles.length > 0) {
@@ -265,10 +284,11 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
 
     if (editingSegmentId) {
       // Update existing segment
-      const updates: any = {
+      const updates: Partial<VideoSegment> = {
         startTime,
         endTime,
         label,
+        speakerBox: speakerMode === 'manual' && speakerBox ? speakerBox : null,
       };
       if (audioFile) {
         const audioInput: AudioInput = {
@@ -289,6 +309,8 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
       console.log('DEBUG: audioEndTime=', audioEndTime);
       console.log('DEBUG: segment startTime=', startTime);
       console.log('DEBUG: segment endTime=', endTime);
+      console.log('DEBUG: speakerMode=', speakerMode);
+      console.log('DEBUG: speakerBox=', speakerBox);
 
       const audioInput: AudioInput = {
         refId: finalRefId,
@@ -301,6 +323,12 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
 
       console.log('DEBUG: audioInput created:', JSON.stringify(audioInput, null, 2));
       const newSegment = createNewSegment(startTime, endTime, audioInput, label);
+
+      // Add speaker box if manual mode is selected
+      if (speakerMode === 'manual' && speakerBox) {
+        newSegment.speakerBox = speakerBox;
+      }
+
       console.log('Created new segment:', JSON.stringify(newSegment, null, 2));
       addSegment(newSegment);
       console.log('Segment added to store');
@@ -655,7 +683,7 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
         </Box>
 
         {/* Optional Label */}
-        <Box>
+        <Box sx={{ mb: 3 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
             📝 Label (Optional)
           </Typography>
@@ -670,6 +698,132 @@ const SegmentDialog: React.FC<SegmentDialogProps> = ({
           <Typography variant="caption" color="text.secondary">
             Add a label to identify this segment
           </Typography>
+        </Box>
+
+        {/* Speaker Selection Section */}
+        <Box>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            🎯 Speaker Selection (Optional)
+          </Typography>
+
+          <Alert severity="info" sx={{ mb: 2, py: 0.5 }}>
+            <Typography variant="caption">
+              For multi-person videos, you can manually select which speaker's face to lip-sync.
+              If not set, the system will auto-detect the active speaker.
+            </Typography>
+          </Alert>
+
+          <RadioGroup
+            value={speakerMode}
+            onChange={(e) => {
+              const mode = e.target.value as 'auto' | 'manual';
+              setSpeakerMode(mode);
+              if (mode === 'auto') {
+                setSpeakerBox(null);
+              }
+            }}
+          >
+            <FormControlLabel
+              value="auto"
+              control={<Radio sx={{ color: '#10b981', '&.Mui-checked': { color: '#10b981' } }} />}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <AutoFixHigh sx={{ fontSize: 18, color: '#10b981' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Auto-detect speaker
+                  </Typography>
+                </Box>
+              }
+            />
+
+            <FormControlLabel
+              value="manual"
+              control={<Radio sx={{ color: '#f59e0b', '&.Mui-checked': { color: '#f59e0b' } }} />}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Face sx={{ fontSize: 18, color: '#f59e0b' }} />
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Manually select speaker face
+                  </Typography>
+                </Box>
+              }
+            />
+          </RadioGroup>
+
+          {/* Manual speaker selection UI */}
+          <Collapse in={speakerMode === 'manual'}>
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'rgba(245, 158, 11, 0.05)', borderRadius: 1, border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+              {speakerBox ? (
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <CheckCircle sx={{ color: '#10b981', fontSize: 20 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 500, color: '#10b981' }}>
+                      Speaker box configured
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                    Box coordinates: ({(speakerBox.x1 * 100).toFixed(0)}%, {(speakerBox.y1 * 100).toFixed(0)}%) to ({(speakerBox.x2 * 100).toFixed(0)}%, {(speakerBox.y2 * 100).toFixed(0)}%)
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {editingSegmentId && onOpenSpeakerSelection && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          onClose();
+                          onOpenSpeakerSelection(editingSegmentId);
+                        }}
+                        sx={{
+                          borderColor: '#f59e0b',
+                          color: '#f59e0b',
+                          '&:hover': { borderColor: '#d97706', bgcolor: 'rgba(245, 158, 11, 0.1)' },
+                        }}
+                      >
+                        Edit Box
+                      </Button>
+                    )}
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setSpeakerBox(null)}
+                      sx={{
+                        borderColor: '#6b7280',
+                        color: '#6b7280',
+                        '&:hover': { borderColor: '#9ca3af', bgcolor: 'rgba(107, 114, 128, 0.1)' },
+                      }}
+                    >
+                      Clear Box
+                    </Button>
+                  </Box>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                    {editingSegmentId
+                      ? 'Click "Draw Speaker Box" to select the speaker\'s face on the video.'
+                      : 'Save this segment first, then edit it to draw a speaker box on the video.'}
+                  </Typography>
+                  {editingSegmentId && onOpenSpeakerSelection && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={() => {
+                        onClose();
+                        onOpenSpeakerSelection(editingSegmentId);
+                      }}
+                      sx={{
+                        bgcolor: '#f59e0b',
+                        '&:hover': { bgcolor: '#d97706' },
+                      }}
+                      startIcon={<Face />}
+                    >
+                      Draw Speaker Box
+                    </Button>
+                  )}
+                </Box>
+              )}
+            </Box>
+          </Collapse>
         </Box>
       </DialogContent>
 

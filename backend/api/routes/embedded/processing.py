@@ -77,12 +77,19 @@ async def start_real_lipsync_processing(
             f"{len(segments)} segments, {len(audio_url_mapping)} audio files"
         )
 
+        # Extract video metadata for speaker selection bounding boxes
+        video_metadata = None
+        if processing_config.video_metadata:
+            video_metadata = processing_config.video_metadata
+            logger.info(f"Job {job.id}: Video metadata provided: {video_metadata}")
+
         # Create Sync.so generation
         if len(segments) > 0 and len(audio_url_mapping) > 0:
             generation_id = await embedded_processing_service.create_lipsync_generation(
                 video_url=token_payload.video_url,
                 segments=segments,
-                audio_url_mapping=audio_url_mapping
+                audio_url_mapping=audio_url_mapping,
+                video_metadata=video_metadata
             )
         elif processing_config.audio_url:
             # Simple single-audio lip-sync
@@ -313,11 +320,18 @@ async def start_combined_lipsync_and_text_removal(
             f"{len(segments)} segments, {len(effects)} effects"
         )
 
+        # Extract video metadata for speaker selection bounding boxes
+        video_metadata = None
+        if processing_config.video_metadata:
+            video_metadata = processing_config.video_metadata
+            logger.info(f"Job {job.id}: Video metadata for combined: {video_metadata}")
+
         # Create Sync.so generation
         generation_id = await embedded_processing_service.create_lipsync_generation(
             video_url=token_payload.video_url,
             segments=segments,
-            audio_url_mapping=audio_url_mapping
+            audio_url_mapping=audio_url_mapping,
+            video_metadata=video_metadata
         )
 
         # Update job - mark as embedded for Celery polling

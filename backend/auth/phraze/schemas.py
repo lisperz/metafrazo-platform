@@ -83,6 +83,7 @@ class ProcessRequest(BaseModel):
     audio_url: Optional[str] = Field(None, description="Audio URL for lip-sync")
     segments: Optional[list[dict]] = Field(None, description="Segments for pro lip-sync")
     effects: Optional[list[dict]] = Field(None, description="Effects for text removal (erasure/protection areas)")
+    video_metadata: Optional[dict] = Field(None, description="Video metadata (fps, total_frames, width, height) for speaker selection")
 
 
 class ErrorResponse(BaseModel):
@@ -92,3 +93,11 @@ class ErrorResponse(BaseModel):
     redirect_url: Optional[str] = None
     job_id: Optional[str] = None
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+
+
+class VideoMetadataRequest(BaseModel):
+    """Video metadata for speaker selection bounding boxes"""
+    fps: float = Field(default=30.0, description="Video frame rate")
+    total_frames: int = Field(..., description="Total number of frames in video")
+    width: int = Field(..., description="Video width in pixels")
+    height: int = Field(..., description="Video height in pixels")

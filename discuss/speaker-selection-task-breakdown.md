@@ -42,8 +42,8 @@ Bounding Boxes Array:
     { "type": "audio", "url": "https://...", "refId": "audio2" }
   ],
   "segments": [
-    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1" } },
-    { "startTime": 15.75, "endTime": 24.64, "audioInput": { "refId": "audio2" } }
+    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1", "startTime": 2.58, "endTime": 10.22 } },
+    { "startTime": 15.75, "endTime": 24.64, "audioInput": { "refId": "audio2", "startTime": 15.75, "endTime": 24.64 } }
   ],
   "options": {
     "active_speaker_detection": {
@@ -90,9 +90,11 @@ Effect Track:
 ┌──────────────────────┐         ┌──────────────────────┐
 │ Segment 1            │         │ Segment 2            │
 │ 00:02:58 - 00:10:22  │         │ 00:15:75 - 00:24:64  │
-│ 👧 Speaker: Girl     │         │ 👨 Speaker: Man      │
+│ 🎯 Speaker: Manual   │         │ 🎯 Speaker: Manual   │
 └──────────────────────┘         └──────────────────────┘
 ```
+
+Note: The timeline shows whether a speaker box has been manually set (🎯) or uses auto-detect. We don't display specific speaker identity since users select by drawing a bounding box on the face.
 
 ---
 

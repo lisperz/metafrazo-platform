@@ -13,6 +13,18 @@ export interface AudioInput {
   endTime?: number;                      // Optional crop end (seconds)
 }
 
+/**
+ * Speaker bounding box for per-segment speaker selection
+ * Coordinates are normalized (0-1) relative to video dimensions
+ */
+export interface SpeakerBox {
+  x1: number;  // Top-left X (normalized 0-1)
+  y1: number;  // Top-left Y (normalized 0-1)
+  x2: number;  // Bottom-right X (normalized 0-1)
+  y2: number;  // Bottom-right Y (normalized 0-1)
+  method: 'auto' | 'manual';  // Detection method
+}
+
 export interface VideoSegment {
   id: string;                            // UUID for frontend tracking
   startTime: number;                     // Segment start time in seconds
@@ -21,6 +33,7 @@ export interface VideoSegment {
   label?: string;                        // Optional segment label for user reference
   color: string;                         // Timeline color for visualization
   createdAt: number;                     // Timestamp when segment was created
+  speakerBox?: SpeakerBox | null;        // Optional speaker bounding box for this segment
 }
 
 export interface ProEditorState {

@@ -11,6 +11,92 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+def build_bounding_boxes(
+    video_fps: float,
+    total_frames: int,
+    segments: List[dict],
+    video_width: int,
+    video_height: int
+) -> Optional[List]:
+    """
+    Build per-frame bounding boxes array from segments with speaker boxes.
+
+    This enables per-segment speaker selection by providing a fixed bounding box
+    for each frame within a segment. Frames outside segments or segments without
+    speaker boxes get null (auto-detect).
+
+    Args:
+        video_fps: Video frame rate (frames per second)
+        total_frames: Total number of frames in the video
+        segments: List of segment configurations with optional speakerBox
+        video_width: Video width in pixels
+        video_height: Video height in pixels
+
+    Returns:
+        List of bounding boxes [x1, y1, x2, y2] or null for each frame,
+        or None if no segments have speaker boxes (use auto-detect for all)
+
+    Example:
+        segments = [
+            {"startTime": 2.0, "endTime": 10.0, "speakerBox": {"x1": 0.3, "y1": 0.2, "x2": 0.7, "y2": 0.8}},
+            {"startTime": 15.0, "endTime": 20.0}  # No speaker box - auto-detect
+        ]
+
+        Result: [null, null, ..., [x1,y1,x2,y2], [x1,y1,x2,y2], ..., null, ...]
+    """
+    # Check if any segment has a speaker box
+    has_any_speaker_box = any(
+        seg.get("speakerBox") and seg["speakerBox"].get("method") == "manual"
+        for seg in segments
+    )
+
+    if not has_any_speaker_box:
+        logger.info("No segments have manual speaker boxes - using auto-detect for all")
+        return None
+
+    # Initialize all frames to null (auto-detect)
+    boxes = [None] * total_frames
+
+    for seg in segments:
+        speaker_box = seg.get("speakerBox")
+
+        # Skip segments without manual speaker box
+        if not speaker_box or speaker_box.get("method") != "manual":
+            continue
+
+        # Calculate frame range for this segment
+        start_frame = int(seg["startTime"] * video_fps)
+        end_frame = min(int(seg["endTime"] * video_fps), total_frames - 1)
+
+        # Convert normalized coordinates (0-1) to pixel coordinates
+        # Sync.so expects [x1, y1, x2, y2] in pixels
+        x1 = int(speaker_box["x1"] * video_width)
+        y1 = int(speaker_box["y1"] * video_height)
+        x2 = int(speaker_box["x2"] * video_width)
+        y2 = int(speaker_box["y2"] * video_height)
+
+        box = [x1, y1, x2, y2]
+
+        logger.info(
+            f"Segment {seg.get('startTime')}-{seg.get('endTime')}: "
+            f"frames {start_frame}-{end_frame}, box={box}"
+        )
+
+        # Set the same box for all frames in this segment
+        for frame in range(start_frame, end_frame + 1):
+            if frame < total_frames:
+                boxes[frame] = box
+
+    # Count non-null boxes for logging
+    non_null_count = sum(1 for b in boxes if b is not None)
+    logger.info(
+        f"Built bounding_boxes array: {total_frames} frames, "
+        f"{non_null_count} with speaker box, {total_frames - non_null_count} auto-detect"
+    )
+
+    return boxes
+
+
 class SyncSegmentsService:
     """
     Service for calling Sync.so API with segment-based lip-sync
@@ -34,7 +120,8 @@ class SyncSegmentsService:
         self,
         video_url: str,
         segments: List[dict],
-        audio_url_mapping: Dict[str, str]
+        audio_url_mapping: Dict[str, str],
+        video_metadata: Optional[dict] = None
     ) -> dict:
         """
         Create a lip-sync generation with multiple segments
@@ -45,6 +132,8 @@ class SyncSegmentsService:
             video_url: S3 URL of the video file
             segments: List of segment configurations from frontend
             audio_url_mapping: Dict mapping refId -> S3 URL for audio files
+            video_metadata: Optional dict with fps, total_frames, width, height
+                           for building bounding_boxes array
 
         Returns:
             dict: Sync.so API response containing generation_id and status
@@ -58,6 +147,11 @@ class SyncSegmentsService:
                     "refId": "audio-1",
                     "startTime": 2.0,  # Optional audio crop
                     "endTime": 12.0    # Optional audio crop
+                },
+                "speakerBox": {        # Optional speaker bounding box
+                    "x1": 0.3, "y1": 0.2,
+                    "x2": 0.7, "y2": 0.8,
+                    "method": "manual"
                 },
                 "label": "Intro Segment"
             }
@@ -114,14 +208,44 @@ class SyncSegmentsService:
                 logger.info(f"Segment {i} final dict: {json.dumps(segment_dict, indent=2)}")
                 segments_array.append(segment_dict)
 
+            # Build options with sync_mode
+            options = {
+                "sync_mode": "remap"  # Remap works correctly when audio crop times match segment times
+            }
+
+            # Build bounding_boxes array if video metadata is provided and segments have speaker boxes
+            if video_metadata:
+                fps = video_metadata.get("fps", 30)
+                total_frames = video_metadata.get("total_frames")
+                width = video_metadata.get("width")
+                height = video_metadata.get("height")
+
+                if total_frames and width and height:
+                    bounding_boxes = build_bounding_boxes(
+                        video_fps=fps,
+                        total_frames=total_frames,
+                        segments=segments,
+                        video_width=width,
+                        video_height=height
+                    )
+
+                    if bounding_boxes:
+                        options["active_speaker_detection"] = {
+                            "bounding_boxes": bounding_boxes
+                        }
+                        logger.info(f"Added bounding_boxes to options ({len(bounding_boxes)} frames)")
+                else:
+                    logger.warning(
+                        f"Incomplete video metadata for bounding boxes: "
+                        f"fps={fps}, frames={total_frames}, size={width}x{height}"
+                    )
+
             # Build final API request payload
             payload = {
                 "model": "lipsync-2-pro",  # Pro model for higher quality lip-sync
                 "input": input_array,
                 "segments": segments_array,
-                "options": {
-                    "sync_mode": "remap"  # Remap works correctly when audio crop times match segment times
-                }
+                "options": options
             }
 
             logger.info(f"Creating segmented lip-sync with {len(segments)} segments")

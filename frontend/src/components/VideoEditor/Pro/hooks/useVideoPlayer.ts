@@ -6,7 +6,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import ReactPlayer from 'react-player';
-import { useEffectsStore } from '../../../../store/effectsStore';
+import { useEffectsStore, VideoMetadata } from '../../../../store/effectsStore';
 import { clampTime } from '../../../../utils/timelineUtils';
 
 export interface UseVideoPlayerReturn {
@@ -52,6 +52,7 @@ export const useVideoPlayer = (): UseVideoPlayerReturn => {
     setCurrentTime: setStoreTime,
     setDuration: setStoreDuration,
     setIsPlaying: setStoreIsPlaying,
+    setVideoMetadata,
   } = useEffectsStore();
 
   /**
@@ -64,13 +65,31 @@ export const useVideoPlayer = (): UseVideoPlayerReturn => {
 
     // Get initial time from the video player
     if (playerRef.current) {
-      const internalPlayer = playerRef.current.getInternalPlayer();
+      const internalPlayer = playerRef.current.getInternalPlayer() as HTMLVideoElement;
       if (internalPlayer && internalPlayer.currentTime !== undefined) {
         const initialTime = internalPlayer.currentTime || 0;
         setStoreTime(initialTime);
       }
+
+      // Capture video metadata for speaker selection feature
+      if (internalPlayer && internalPlayer.videoWidth && internalPlayer.videoHeight) {
+        const videoDuration = internalPlayer.duration || 0;
+        // Estimate fps (most videos are 30fps, but we can't get exact fps from HTML5 video)
+        const estimatedFps = 30;
+        const totalFrames = Math.ceil(videoDuration * estimatedFps);
+
+        const metadata: VideoMetadata = {
+          width: internalPlayer.videoWidth,
+          height: internalPlayer.videoHeight,
+          fps: estimatedFps,
+          totalFrames: totalFrames,
+        };
+
+        console.log('Video metadata captured:', metadata);
+        setVideoMetadata(metadata);
+      }
     }
-  }, [setStoreTime]);
+  }, [setStoreTime, setVideoMetadata]);
 
   /**
    * Handles video progress updates

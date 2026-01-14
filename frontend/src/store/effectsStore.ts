@@ -13,6 +13,13 @@ export interface VideoEffect {
   };
 }
 
+export interface VideoMetadata {
+  width: number;
+  height: number;
+  fps: number;
+  totalFrames: number;
+}
+
 interface EffectsStore {
   effects: VideoEffect[];
   selectedEffectId: string | null;
@@ -22,6 +29,7 @@ interface EffectsStore {
   selectedLabel: 'erasure' | 'protection' | 'text';
   videoUrl: string;
   zoomLevel: number;  // Added for timeline zoom synchronization
+  videoMetadata: VideoMetadata | null;  // Video dimensions and fps for speaker selection
   
   // Undo/Redo functionality
   history: VideoEffect[][];
@@ -38,6 +46,7 @@ interface EffectsStore {
   setSelectedLabel: (label: 'erasure' | 'protection' | 'text') => void;
   setVideoUrl: (url: string) => void;
   setZoomLevel: (zoom: number) => void;  // Added zoom control
+  setVideoMetadata: (metadata: VideoMetadata | null) => void;
   clearEffects: () => void;
   
   // Undo/Redo actions
@@ -60,6 +69,7 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
   selectedLabel: 'erasure',
   videoUrl: '',
   zoomLevel: 1,  // Default zoom level 1 (100%)
+  videoMetadata: null,  // Will be set when video loads
   
   // Undo/Redo state
   history: [[]],
@@ -111,7 +121,9 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
   setVideoUrl: (url) => set({ videoUrl: url }),
   
   setZoomLevel: (zoom) => set({ zoomLevel: zoom }),
-  
+
+  setVideoMetadata: (metadata) => set({ videoMetadata: metadata }),
+
   clearEffects: () => set({ effects: [], selectedEffectId: null, history: [[]], historyIndex: 0 }),
   
   // Undo/Redo implementations

@@ -30,12 +30,20 @@ export interface EffectData {
   };
 }
 
+export interface VideoMetadataRequest {
+  fps: number;
+  total_frames: number;
+  width: number;
+  height: number;
+}
+
 export interface ProcessRequest {
   processing_type: 'text_removal' | 'lip_sync' | 'both';
   target_language?: string;
   audio_url?: string;
   segments?: any[];
   effects?: EffectData[];
+  video_metadata?: VideoMetadataRequest;
 }
 
 export interface ProcessResponse {

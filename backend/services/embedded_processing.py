@@ -30,7 +30,8 @@ class EmbeddedProcessingService:
         self,
         video_url: str,
         segments: List[Dict[str, Any]],
-        audio_url_mapping: Dict[str, str]
+        audio_url_mapping: Dict[str, str],
+        video_metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
         Create a Sync.so lip-sync generation with segments
@@ -39,6 +40,8 @@ class EmbeddedProcessingService:
             video_url: S3 URL of the input video
             segments: List of segment configurations with audioInput references
             audio_url_mapping: Dict mapping refId -> audio S3 URL
+            video_metadata: Optional dict with fps, total_frames, width, height
+                           for building bounding_boxes array (speaker selection)
 
         Returns:
             Sync.so generation ID for polling
@@ -47,11 +50,24 @@ class EmbeddedProcessingService:
             logger.info(f"Creating Sync.so generation: video={video_url[:50]}...")
             logger.info(f"Segments: {len(segments)}, Audio files: {len(audio_url_mapping)}")
 
+            # Check if any segment has speaker box
+            has_speaker_boxes = any(
+                seg.get("speakerBox") and seg["speakerBox"].get("method") == "manual"
+                for seg in segments
+            )
+            if has_speaker_boxes:
+                logger.info("Segments contain speaker boxes - will build bounding_boxes array")
+                if video_metadata:
+                    logger.info(f"Video metadata: {video_metadata}")
+                else:
+                    logger.warning("No video metadata provided - speaker boxes will be ignored")
+
             # Use the existing sync_segments_service for segment-based lip-sync
             response = await sync_segments_service.create_segmented_lipsync(
                 video_url=video_url,
                 segments=segments,
-                audio_url_mapping=audio_url_mapping
+                audio_url_mapping=audio_url_mapping,
+                video_metadata=video_metadata
             )
 
             generation_id = response.get("id")

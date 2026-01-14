@@ -48,7 +48,7 @@ export const useVideoSubmission = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState('');
 
-  const { effects } = useEffectsStore();
+  const { effects, videoMetadata } = useEffectsStore();
   const { segments } = useSegmentsStore();
 
   const { videoFile, videoUrl, embeddedMode, embeddedToken, phrazeJobId, callbackUrl } = normalizedOptions;
@@ -136,8 +136,16 @@ export const useVideoSubmission = (
         const audioEndTime = seg.endTime;
 
         console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
+        if (seg.speakerBox) {
+          console.log(`Segment ${seg.id}: speakerBox=${JSON.stringify(seg.speakerBox)}`);
+        }
 
-        return {
+        const segmentData: {
+          startTime: number;
+          endTime: number;
+          audioInput: { refId: string; startTime: number; endTime: number };
+          speakerBox?: { x1: number; y1: number; x2: number; y2: number; method: string };
+        } = {
           startTime: seg.startTime,
           endTime: seg.endTime,
           audioInput: {
@@ -146,6 +154,19 @@ export const useVideoSubmission = (
             endTime: audioEndTime,
           },
         };
+
+        // Include speaker box if manually configured
+        if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+          segmentData.speakerBox = {
+            x1: seg.speakerBox.x1,
+            y1: seg.speakerBox.y1,
+            x2: seg.speakerBox.x2,
+            y2: seg.speakerBox.y2,
+            method: seg.speakerBox.method,
+          };
+        }
+
+        return segmentData;
       });
 
       formData.append('segments_data', JSON.stringify(segmentsData));
@@ -346,8 +367,16 @@ export const useVideoSubmission = (
         const audioEndTime = seg.endTime;
 
         console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
+        if (seg.speakerBox) {
+          console.log(`Segment ${seg.id}: speakerBox=${JSON.stringify(seg.speakerBox)}`);
+        }
 
-        return {
+        const segmentData: {
+          startTime: number;
+          endTime: number;
+          audioInput: { refId: string; url: string; startTime: number; endTime: number };
+          speakerBox?: { x1: number; y1: number; x2: number; y2: number; method: string };
+        } = {
           startTime: seg.startTime,
           endTime: seg.endTime,
           audioInput: {
@@ -357,6 +386,19 @@ export const useVideoSubmission = (
             endTime: audioEndTime,
           },
         };
+
+        // Include speaker box if manually configured
+        if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+          segmentData.speakerBox = {
+            x1: seg.speakerBox.x1,
+            y1: seg.speakerBox.y1,
+            x2: seg.speakerBox.x2,
+            y2: seg.speakerBox.y2,
+            method: seg.speakerBox.method,
+          };
+        }
+
+        return segmentData;
       });
 
       console.log('Submitting to embedded API with segments:', segmentsData);
@@ -384,6 +426,7 @@ export const useVideoSubmission = (
 
       console.log('Processing type:', processingType);
       console.log('Erasure effects:', erasureEffects);
+      console.log('Video metadata:', videoMetadata);
 
       setSubmissionProgress('Submitting to phraze.so processing...');
 
@@ -391,6 +434,12 @@ export const useVideoSubmission = (
         processing_type: processingType,
         segments: hasSegments ? segmentsData : undefined,
         effects: hasErasureEffects ? erasureEffects : undefined,
+        video_metadata: videoMetadata ? {
+          fps: videoMetadata.fps,
+          total_frames: videoMetadata.totalFrames,
+          width: videoMetadata.width,
+          height: videoMetadata.height,
+        } : undefined,
       });
 
       console.log('Embedded submission response:', response);
@@ -415,7 +464,7 @@ export const useVideoSubmission = (
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Processing failed: ${errorMessage}`);
     }
-  }, [embeddedToken, phrazeJobId, segments, effects, callbackUrl]);
+  }, [embeddedToken, phrazeJobId, segments, effects, callbackUrl, videoMetadata]);
 
   return {
     isSubmitting,
