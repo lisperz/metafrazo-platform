@@ -48,7 +48,7 @@ export const useVideoSubmission = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissionProgress, setSubmissionProgress] = useState('');
 
-  const { effects, videoMetadata } = useEffectsStore();
+  const { effects, videoMetadata, globalSpeakerBox } = useEffectsStore();
   const { segments } = useSegmentsStore();
 
   const { videoFile, videoUrl, embeddedMode, embeddedToken, phrazeJobId, callbackUrl } = normalizedOptions;
@@ -136,9 +136,6 @@ export const useVideoSubmission = (
         const audioEndTime = seg.endTime;
 
         console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
-        if (seg.speakerBox) {
-          console.log(`Segment ${seg.id}: speakerBox=${JSON.stringify(seg.speakerBox)}`);
-        }
 
         const segmentData: {
           startTime: number;
@@ -155,8 +152,18 @@ export const useVideoSubmission = (
           },
         };
 
-        // Include speaker box if manually configured
-        if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+        // Use global speaker box if set, otherwise use per-segment speaker box
+        if (globalSpeakerBox) {
+          console.log(`Segment ${seg.id}: using global speakerBox=${JSON.stringify(globalSpeakerBox)}`);
+          segmentData.speakerBox = {
+            x1: globalSpeakerBox.x1,
+            y1: globalSpeakerBox.y1,
+            x2: globalSpeakerBox.x2,
+            y2: globalSpeakerBox.y2,
+            method: 'manual',
+          };
+        } else if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+          console.log(`Segment ${seg.id}: using per-segment speakerBox=${JSON.stringify(seg.speakerBox)}`);
           segmentData.speakerBox = {
             x1: seg.speakerBox.x1,
             y1: seg.speakerBox.y1,
@@ -237,7 +244,7 @@ export const useVideoSubmission = (
       alert('Error submitting video. Please try again.');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoFile, videoUrl, embeddedMode, embeddedToken, segments, effects, navigate]);
+  }, [videoFile, videoUrl, embeddedMode, embeddedToken, segments, effects, navigate, globalSpeakerBox]);
 
   /**
    * Poll for job status until completion or failure
@@ -367,9 +374,6 @@ export const useVideoSubmission = (
         const audioEndTime = seg.endTime;
 
         console.log(`Segment ${seg.id}: video=${seg.startTime}-${seg.endTime}, audio=${audioStartTime}-${audioEndTime} (forced match)`);
-        if (seg.speakerBox) {
-          console.log(`Segment ${seg.id}: speakerBox=${JSON.stringify(seg.speakerBox)}`);
-        }
 
         const segmentData: {
           startTime: number;
@@ -387,8 +391,18 @@ export const useVideoSubmission = (
           },
         };
 
-        // Include speaker box if manually configured
-        if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+        // Use global speaker box if set, otherwise use per-segment speaker box
+        if (globalSpeakerBox) {
+          console.log(`Segment ${seg.id}: using global speakerBox=${JSON.stringify(globalSpeakerBox)}`);
+          segmentData.speakerBox = {
+            x1: globalSpeakerBox.x1,
+            y1: globalSpeakerBox.y1,
+            x2: globalSpeakerBox.x2,
+            y2: globalSpeakerBox.y2,
+            method: 'manual',
+          };
+        } else if (seg.speakerBox && seg.speakerBox.method === 'manual') {
+          console.log(`Segment ${seg.id}: using per-segment speakerBox=${JSON.stringify(seg.speakerBox)}`);
           segmentData.speakerBox = {
             x1: seg.speakerBox.x1,
             y1: seg.speakerBox.y1,
@@ -464,7 +478,7 @@ export const useVideoSubmission = (
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       alert(`Processing failed: ${errorMessage}`);
     }
-  }, [embeddedToken, phrazeJobId, segments, effects, callbackUrl, videoMetadata]);
+  }, [embeddedToken, phrazeJobId, segments, effects, callbackUrl, videoMetadata, globalSpeakerBox]);
 
   return {
     isSubmitting,

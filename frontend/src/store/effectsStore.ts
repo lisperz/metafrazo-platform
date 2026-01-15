@@ -20,6 +20,14 @@ export interface VideoMetadata {
   totalFrames: number;
 }
 
+// Global speaker box for all segments (applied to entire video)
+export interface GlobalSpeakerBox {
+  x1: number;  // Top-left X (normalized 0-1)
+  y1: number;  // Top-left Y (normalized 0-1)
+  x2: number;  // Bottom-right X (normalized 0-1)
+  y2: number;  // Bottom-right Y (normalized 0-1)
+}
+
 interface EffectsStore {
   effects: VideoEffect[];
   selectedEffectId: string | null;
@@ -30,6 +38,10 @@ interface EffectsStore {
   videoUrl: string;
   zoomLevel: number;  // Added for timeline zoom synchronization
   videoMetadata: VideoMetadata | null;  // Video dimensions and fps for speaker selection
+
+  // Global speaker selection
+  globalSpeakerBox: GlobalSpeakerBox | null;  // Speaker bounding box for all segments
+  isSpeakerSelectionMode: boolean;  // Whether user is drawing speaker box
   
   // Undo/Redo functionality
   history: VideoEffect[][];
@@ -48,6 +60,14 @@ interface EffectsStore {
   setZoomLevel: (zoom: number) => void;  // Added zoom control
   setVideoMetadata: (metadata: VideoMetadata | null) => void;
   clearEffects: () => void;
+
+  // Speaker selection actions
+  setGlobalSpeakerBox: (box: GlobalSpeakerBox | null) => void;
+  setSpeakerSelectionMode: (isActive: boolean) => void;
+  startSpeakerSelection: () => void;
+  confirmSpeakerSelection: (box: GlobalSpeakerBox) => void;
+  cancelSpeakerSelection: () => void;
+  clearSpeakerBox: () => void;
   
   // Undo/Redo actions
   undo: () => void;
@@ -70,6 +90,10 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
   videoUrl: '',
   zoomLevel: 1,  // Default zoom level 1 (100%)
   videoMetadata: null,  // Will be set when video loads
+
+  // Global speaker selection state
+  globalSpeakerBox: null,
+  isSpeakerSelectionMode: false,
   
   // Undo/Redo state
   history: [[]],
@@ -125,6 +149,33 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
   setVideoMetadata: (metadata) => set({ videoMetadata: metadata }),
 
   clearEffects: () => set({ effects: [], selectedEffectId: null, history: [[]], historyIndex: 0 }),
+
+  // Speaker selection implementations
+  setGlobalSpeakerBox: (box) => set({ globalSpeakerBox: box }),
+
+  setSpeakerSelectionMode: (isActive) => set({ isSpeakerSelectionMode: isActive }),
+
+  startSpeakerSelection: () => set({
+    isSpeakerSelectionMode: true,
+    // Set default box in center if none exists
+    globalSpeakerBox: { x1: 0.3, y1: 0.2, x2: 0.7, y2: 0.8 }
+  }),
+
+  confirmSpeakerSelection: (box) => set({
+    globalSpeakerBox: box,
+    isSpeakerSelectionMode: false
+  }),
+
+  cancelSpeakerSelection: () => set((state) => ({
+    isSpeakerSelectionMode: false,
+    // Keep existing box if there was one, otherwise clear
+    globalSpeakerBox: state.globalSpeakerBox
+  })),
+
+  clearSpeakerBox: () => set({
+    globalSpeakerBox: null,
+    isSpeakerSelectionMode: false
+  }),
   
   // Undo/Redo implementations
   undo: () => set((state) => {

@@ -5,6 +5,7 @@
  * - Drawing rectangles (effects)
  * - Existing effects (erasure, protection, text)
  * - Draggable and resizable effect regions
+ * - Speaker selection bounding box
  */
 
 import React from 'react';
@@ -12,7 +13,7 @@ import ReactPlayer from 'react-player';
 import { Rnd } from 'react-rnd';
 import { Box, Typography, Button, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { VideoEffect } from '../../../../store/effectsStore';
+import { VideoEffect, useEffectsStore, GlobalSpeakerBox } from '../../../../store/effectsStore';
 import { VideoHandlers } from '../hooks/useVideoHandlers';
 import { EffectHandlers } from '../hooks/useEffectHandlers';
 import { formatTime as formatTimeUtil } from '../../../../utils/timelineUtils';
@@ -46,6 +47,16 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
   deleteEffect,
   setStoreTime,
 }) => {
+  // Get speaker selection state from store
+  const {
+    globalSpeakerBox,
+    isSpeakerSelectionMode,
+    setGlobalSpeakerBox,
+    confirmSpeakerSelection,
+    cancelSpeakerSelection,
+    clearSpeakerBox,
+  } = useEffectsStore();
+
   const formatTime = (seconds: number, includeMs: boolean = false): string => {
     if (includeMs) {
       return formatTimeUtil(seconds);
@@ -57,6 +68,43 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
 
   const handleStopEditing = () => {
     effectHandlers.handleStopEditing();
+  };
+
+  // Handle speaker box drag
+  const handleSpeakerBoxDrag = (d: { x: number; y: number }) => {
+    if (!videoHandlers.videoBounds || !globalSpeakerBox) return;
+
+    const width = globalSpeakerBox.x2 - globalSpeakerBox.x1;
+    const height = globalSpeakerBox.y2 - globalSpeakerBox.y1;
+    const newX1 = (d.x - videoHandlers.videoBounds.x) / videoHandlers.videoBounds.width;
+    const newY1 = (d.y - videoHandlers.videoBounds.y) / videoHandlers.videoBounds.height;
+
+    setGlobalSpeakerBox({
+      x1: Math.max(0, Math.min(1 - width, newX1)),
+      y1: Math.max(0, Math.min(1 - height, newY1)),
+      x2: Math.max(0, Math.min(1, newX1 + width)),
+      y2: Math.max(0, Math.min(1, newY1 + height)),
+    });
+  };
+
+  // Handle speaker box resize
+  const handleSpeakerBoxResize = (
+    ref: HTMLElement,
+    position: { x: number; y: number }
+  ) => {
+    if (!videoHandlers.videoBounds) return;
+
+    const newX1 = (position.x - videoHandlers.videoBounds.x) / videoHandlers.videoBounds.width;
+    const newY1 = (position.y - videoHandlers.videoBounds.y) / videoHandlers.videoBounds.height;
+    const newWidth = parseInt(ref.style.width) / videoHandlers.videoBounds.width;
+    const newHeight = parseInt(ref.style.height) / videoHandlers.videoBounds.height;
+
+    setGlobalSpeakerBox({
+      x1: Math.max(0, Math.min(1, newX1)),
+      y1: Math.max(0, Math.min(1, newY1)),
+      x2: Math.max(0, Math.min(1, newX1 + newWidth)),
+      y2: Math.max(0, Math.min(1, newY1 + newHeight)),
+    });
   };
 
   return (
@@ -474,6 +522,170 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
             </Box>
           );
         })}
+
+        {/* Speaker Selection Bounding Box Overlay */}
+        {isSpeakerSelectionMode && globalSpeakerBox && videoHandlers.videoBounds && (
+          <Rnd
+            position={{
+              x: videoHandlers.videoBounds.x + (globalSpeakerBox.x1 * videoHandlers.videoBounds.width),
+              y: videoHandlers.videoBounds.y + (globalSpeakerBox.y1 * videoHandlers.videoBounds.height),
+            }}
+            size={{
+              width: (globalSpeakerBox.x2 - globalSpeakerBox.x1) * videoHandlers.videoBounds.width,
+              height: (globalSpeakerBox.y2 - globalSpeakerBox.y1) * videoHandlers.videoBounds.height,
+            }}
+            bounds=".video-bounds-container"
+            onDragStop={(e, d) => handleSpeakerBoxDrag(d)}
+            onResizeStop={(e, direction, ref, delta, position) => {
+              handleSpeakerBoxResize(ref, position);
+            }}
+            style={{
+              border: '3px solid #f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              position: 'absolute',
+              zIndex: 25,
+              boxShadow: '0 0 10px rgba(245, 158, 11, 0.5)',
+            }}
+          >
+            {/* Corner dots for speaker box */}
+            {[
+              { position: { left: -4, top: -4 }, cursor: 'nw-resize' },
+              { position: { right: -4, top: -4 }, cursor: 'ne-resize' },
+              { position: { left: -4, bottom: -4 }, cursor: 'sw-resize' },
+              { position: { right: -4, bottom: -4 }, cursor: 'se-resize' },
+            ].map((corner, index) => (
+              <Box
+                key={index}
+                sx={{
+                  position: 'absolute',
+                  ...corner.position,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#f59e0b',
+                  border: '2px solid white',
+                  borderRadius: '50%',
+                  cursor: corner.cursor,
+                  pointerEvents: 'auto',
+                  '&:hover': {
+                    backgroundColor: '#d97706',
+                    transform: 'scale(1.2)',
+                  }
+                }}
+              />
+            ))}
+
+            {/* Speaker box label and controls */}
+            <Box sx={{
+              position: 'absolute',
+              top: -55,
+              left: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 0.5,
+            }}>
+              <Typography sx={{
+                fontSize: '11px',
+                color: '#fff',
+                bgcolor: 'rgba(245, 158, 11, 0.9)',
+                px: 1,
+                py: 0.5,
+                borderRadius: '3px',
+                fontWeight: 600,
+                whiteSpace: 'nowrap'
+              }}>
+                Speaker Face Region
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => confirmSpeakerSelection(globalSpeakerBox)}
+                  sx={{
+                    fontSize: '11px',
+                    minWidth: 'auto',
+                    px: 1,
+                    py: 0.5,
+                    bgcolor: '#52c41a',
+                    '&:hover': { bgcolor: '#73d13d' }
+                  }}
+                >
+                  Confirm
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={cancelSpeakerSelection}
+                  sx={{
+                    fontSize: '11px',
+                    minWidth: 'auto',
+                    px: 1,
+                    py: 0.5,
+                    borderColor: '#ff4d4f',
+                    color: '#ff4d4f',
+                    '&:hover': {
+                      borderColor: '#ff7875',
+                      color: '#ff7875'
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={clearSpeakerBox}
+                  sx={{
+                    fontSize: '11px',
+                    minWidth: 'auto',
+                    px: 1,
+                    py: 0.5,
+                    borderColor: '#666',
+                    color: '#fff',
+                    bgcolor: 'rgba(0,0,0,0.5)',
+                    '&:hover': {
+                      borderColor: '#999',
+                      bgcolor: 'rgba(0,0,0,0.7)'
+                    }
+                  }}
+                >
+                  Clear
+                </Button>
+              </Box>
+            </Box>
+          </Rnd>
+        )}
+
+        {/* Display confirmed speaker box (when not in selection mode) */}
+        {!isSpeakerSelectionMode && globalSpeakerBox && videoHandlers.videoBounds && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: `${videoHandlers.videoBounds.x + (globalSpeakerBox.x1 * videoHandlers.videoBounds.width)}px`,
+              top: `${videoHandlers.videoBounds.y + (globalSpeakerBox.y1 * videoHandlers.videoBounds.height)}px`,
+              width: `${(globalSpeakerBox.x2 - globalSpeakerBox.x1) * videoHandlers.videoBounds.width}px`,
+              height: `${(globalSpeakerBox.y2 - globalSpeakerBox.y1) * videoHandlers.videoBounds.height}px`,
+              border: '2px dashed #f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.05)',
+              pointerEvents: 'none',
+              zIndex: 5,
+            }}
+          >
+            <Typography sx={{
+              position: 'absolute',
+              top: -20,
+              left: 0,
+              fontSize: '10px',
+              color: '#f59e0b',
+              bgcolor: 'rgba(0,0,0,0.7)',
+              px: 0.5,
+              py: 0.25,
+              borderRadius: '2px',
+              whiteSpace: 'nowrap'
+            }}>
+              Speaker
+            </Typography>
+          </Box>
+        )}
       </Box>
     </Box>
   );

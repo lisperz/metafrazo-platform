@@ -22,6 +22,7 @@ import { useTimelineAudioDrop } from '../hooks/useTimelineAudioDrop';
 import { calculateProgressPercentage, formatTime as formatTimeUtil, handleTimelineInteraction } from '../../../../utils/timelineUtils';
 import { VideoSegment } from '../../../../types/segments';
 import { detectOverlappingSegments } from '../../../../utils/segmentOverlapDetection';
+import { useEffectsStore } from '../../../../store/effectsStore';
 
 interface TimelineEffect {
   id: string;
@@ -86,6 +87,13 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
   setIsDraggingTimeline,
 }) => {
   const frameStripRef = useRef<HTMLDivElement | null>(null);
+
+  // Get speaker selection state from store
+  const {
+    globalSpeakerBox,
+    isSpeakerSelectionMode,
+    startSpeakerSelection,
+  } = useEffectsStore();
 
   // Audio drop functionality
   const audioDropHandlers = useTimelineAudioDrop({
@@ -270,6 +278,8 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           canUndo={canUndo || canUndoSegment}
           canRedo={canRedo || canRedoSegment}
           segmentCount={segments.length}
+          hasSpeakerBox={globalSpeakerBox !== null}
+          isSpeakerSelectionMode={isSpeakerSelectionMode}
           onPlayPause={videoHandlers.handlePlayPause}
           onVolumeToggle={videoHandlers.handleVolumeToggle}
           onUndo={() => {}}
@@ -277,6 +287,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           onZoomChange={setTimelineZoom}
           onAddEffect={effectHandlers.handleAddEffect}
           onAddSegment={segmentHandlers.handleAddSegment}
+          onSelectSpeaker={startSpeakerSelection}
           formatTime={formatTime}
         />
 

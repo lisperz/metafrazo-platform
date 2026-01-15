@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, Button, IconButton, Slider } from '@mui/material';
-import { PlayArrow, Pause, Undo, Redo, VolumeUp, VolumeOff, Add } from '@mui/icons-material';
+import { PlayArrow, Pause, Undo, Redo, VolumeUp, VolumeOff, Add, Face } from '@mui/icons-material';
 
 interface TimelineControlsProps {
   isPlaying: boolean;
@@ -11,6 +11,8 @@ interface TimelineControlsProps {
   canUndo: boolean;
   canRedo: boolean;
   segmentCount: number;
+  hasSpeakerBox?: boolean;
+  isSpeakerSelectionMode?: boolean;
   onPlayPause: () => void;
   onVolumeToggle: () => void;
   onUndo: () => void;
@@ -18,6 +20,7 @@ interface TimelineControlsProps {
   onZoomChange: (zoom: number) => void;
   onAddEffect: (type: 'erasure' | 'protection' | 'text') => void;
   onAddSegment: () => void;
+  onSelectSpeaker?: () => void;
   formatTime: (seconds: number, includeMs?: boolean) => string;
 }
 
@@ -30,6 +33,8 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   canUndo,
   canRedo,
   segmentCount,
+  hasSpeakerBox = false,
+  isSpeakerSelectionMode = false,
   onPlayPause,
   onVolumeToggle,
   onUndo,
@@ -37,6 +42,7 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   onZoomChange,
   onAddEffect,
   onAddSegment,
+  onSelectSpeaker,
   formatTime,
 }) => {
   const renderColorButton = (
@@ -115,6 +121,41 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
       >
         Add Segment
       </Button>
+
+      {/* Select Speaker Button - For multi-person videos */}
+      {onSelectSpeaker && (
+        <Button
+          variant="contained"
+          size="small"
+          onClick={onSelectSpeaker}
+          startIcon={<Face />}
+          sx={{
+            bgcolor: isSpeakerSelectionMode
+              ? '#10b981'
+              : hasSpeakerBox
+                ? '#059669'
+                : '#6366f1',
+            color: 'white',
+            border: 'none',
+            fontSize: '13px',
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': {
+              bgcolor: isSpeakerSelectionMode
+                ? '#059669'
+                : hasSpeakerBox
+                  ? '#047857'
+                  : '#4f46e5',
+            },
+          }}
+        >
+          {isSpeakerSelectionMode
+            ? 'Drawing...'
+            : hasSpeakerBox
+              ? 'Speaker Set ✓'
+              : 'Select Speaker'}
+        </Button>
+      )}
     </>
   );
 };
