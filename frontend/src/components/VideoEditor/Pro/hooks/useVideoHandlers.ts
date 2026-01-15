@@ -40,6 +40,7 @@ export const useVideoHandlers = (
     setCurrentTime: setStoreTime,
     setDuration: setStoreDuration,
     setIsPlaying: setStoreIsPlaying,
+    setVideoMetadata,
     isPlaying,
   } = useEffectsStore();
 
@@ -219,6 +220,25 @@ export const useVideoHandlers = (
       if (internalPlayer && internalPlayer.currentTime !== undefined) {
         const initialTime = internalPlayer.currentTime || 0;
         setStoreTime(initialTime);
+      }
+
+      // Capture video metadata for speaker selection feature
+      // This is critical for converting normalized (0-1) coordinates to pixel coordinates
+      if (internalPlayer && internalPlayer.videoWidth && internalPlayer.videoHeight) {
+        const videoDuration = internalPlayer.duration || 0;
+        // Estimate fps (most videos are 30fps, but we can't get exact fps from HTML5 video)
+        const estimatedFps = 30;
+        const totalFrames = Math.ceil(videoDuration * estimatedFps);
+
+        const metadata = {
+          width: internalPlayer.videoWidth,
+          height: internalPlayer.videoHeight,
+          fps: estimatedFps,
+          totalFrames: totalFrames,
+        };
+
+        console.log('Video metadata captured:', metadata);
+        setVideoMetadata(metadata);
       }
     }
   };
