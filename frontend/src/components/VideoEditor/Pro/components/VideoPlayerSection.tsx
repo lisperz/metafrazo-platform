@@ -14,6 +14,7 @@ import { Rnd } from 'react-rnd';
 import { Box, Typography, Button, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { VideoEffect, useEffectsStore, GlobalSpeakerBox } from '../../../../store/effectsStore';
+import { useSegmentsStore } from '../../../../store/segmentsStore';
 import { VideoHandlers } from '../hooks/useVideoHandlers';
 import { EffectHandlers } from '../hooks/useEffectHandlers';
 import { formatTime as formatTimeUtil } from '../../../../utils/timelineUtils';
@@ -56,6 +57,9 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
     cancelSpeakerSelection,
     clearSpeakerBox,
   } = useEffectsStore();
+
+  // Get segment count for speaker box label
+  const { segments } = useSegmentsStore();
 
   const formatTime = (seconds: number, includeMs: boolean = false): string => {
     if (includeMs) {
@@ -593,7 +597,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
                 fontWeight: 600,
                 whiteSpace: 'nowrap'
               }}>
-                Speaker Face Region
+                Speaker Face Region {segments.length > 0 ? `(applies to ${segments.length} segment${segments.length > 1 ? 's' : ''})` : ''}
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
@@ -682,7 +686,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
               borderRadius: '2px',
               whiteSpace: 'nowrap'
             }}>
-              Speaker
+              Speaker {segments.length > 0 ? `(${segments.length} segment${segments.length > 1 ? 's' : ''})` : ''}
             </Typography>
           </Box>
         )}

@@ -490,6 +490,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               onEffectClick={handleEffectClick}
               onEffectDelete={handleDeleteTimelineEffect}
               overlappingSegmentIds={overlappingSegments}
+              hasSpeakerBox={globalSpeakerBox !== null}
               showDropZone={segments.length === 0}
               dropZoneProps={{
                 isDragging: audioDropHandlers.isDragging,

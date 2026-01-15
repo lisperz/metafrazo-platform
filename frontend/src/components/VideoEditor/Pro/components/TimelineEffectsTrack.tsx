@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Typography, IconButton } from '@mui/material';
-import { Delete, Warning } from '@mui/icons-material';
+import { Delete, Warning, Face } from '@mui/icons-material';
 import { EmptyTimelineDropZone } from './EmptyTimelineDropZone';
 
 interface TimelineEffect {
@@ -33,6 +33,7 @@ interface TimelineEffectsTrackProps {
   onEffectClick: (effectId: string, e: React.MouseEvent) => void;
   onEffectDelete: (id: string) => void;
   overlappingSegmentIds?: Set<string>;
+  hasSpeakerBox?: boolean;  // Whether global speaker box is set
   // Audio drop zone props
   showDropZone?: boolean;
   dropZoneProps?: {
@@ -61,6 +62,7 @@ const TimelineEffectsTrack: React.FC<TimelineEffectsTrackProps> = ({
   onEffectClick,
   onEffectDelete,
   overlappingSegmentIds = new Set(),
+  hasSpeakerBox = false,
   showDropZone = false,
   dropZoneProps,
 }) => {
@@ -237,6 +239,16 @@ const TimelineEffectsTrack: React.FC<TimelineEffectsTrackProps> = ({
                           color: '#fff',
                           filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
                         }}
+                      />
+                    )}
+                    {hasSpeakerBox && (
+                      <Face
+                        sx={{
+                          fontSize: 11,
+                          color: '#f59e0b',
+                          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
+                        }}
+                        titleAccess="Speaker box applied"
                       />
                     )}
                     <Typography sx={{
