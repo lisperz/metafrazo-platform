@@ -90,9 +90,9 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
 
   // Get speaker selection state from store
   const {
-    globalSpeakerBox,
+    speakerEditingSegmentId,
+    startSpeakerSelectionForSegment,
     isSpeakerSelectionMode,
-    startSpeakerSelection,
   } = useEffectsStore();
 
   // Audio drop functionality
@@ -103,6 +103,24 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
       // Error is already shown in drop zone component
     },
   });
+
+  // Get current segment at playhead time
+  const currentSegment = getSegmentAtTime(currentTime);
+
+  // Handler to start speaker selection for current segment
+  const handleSelectSpeaker = () => {
+    if (currentSegment) {
+      startSpeakerSelectionForSegment(
+        currentSegment.id,
+        currentSegment.speakerBox ? {
+          x1: currentSegment.speakerBox.x1,
+          y1: currentSegment.speakerBox.y1,
+          x2: currentSegment.speakerBox.x2,
+          y2: currentSegment.speakerBox.y2,
+        } : null
+      );
+    }
+  };
 
   const formatTime = (seconds: number, includeMs: boolean = false): string => {
     if (includeMs) {
@@ -278,8 +296,10 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           canUndo={canUndo || canUndoSegment}
           canRedo={canRedo || canRedoSegment}
           segmentCount={segments.length}
-          hasSpeakerBox={globalSpeakerBox !== null}
-          isSpeakerSelectionMode={isSpeakerSelectionMode}
+          currentSegmentHasSpeakerBox={currentSegment?.speakerBox !== null && currentSegment?.speakerBox !== undefined}
+          isSpeakerSelectionMode={isSpeakerSelectionMode()}
+          canSelectSpeaker={currentSegment !== undefined}
+          currentSegmentLabel={currentSegment?.label}
           onPlayPause={videoHandlers.handlePlayPause}
           onVolumeToggle={videoHandlers.handleVolumeToggle}
           onUndo={() => {}}
@@ -287,7 +307,7 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
           onZoomChange={setTimelineZoom}
           onAddEffect={effectHandlers.handleAddEffect}
           onAddSegment={segmentHandlers.handleAddSegment}
-          onSelectSpeaker={startSpeakerSelection}
+          onSelectSpeaker={handleSelectSpeaker}
           formatTime={formatTime}
         />
 
@@ -490,7 +510,6 @@ export const TimelineSection: React.FC<TimelineSectionProps> = ({
               onEffectClick={handleEffectClick}
               onEffectDelete={handleDeleteTimelineEffect}
               overlappingSegmentIds={overlappingSegments}
-              hasSpeakerBox={globalSpeakerBox !== null}
               showDropZone={segments.length === 0}
               dropZoneProps={{
                 isDragging: audioDropHandlers.isDragging,

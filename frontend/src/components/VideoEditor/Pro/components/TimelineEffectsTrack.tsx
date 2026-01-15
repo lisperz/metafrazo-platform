@@ -12,12 +12,20 @@ interface TimelineEffect {
   label: string;
 }
 
+interface SpeakerBox {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
 interface VideoSegment {
   id: string;
   startTime: number;
   endTime: number;
   color: string;
   label?: string;
+  speakerBox?: SpeakerBox | null;  // Per-segment speaker box
 }
 
 interface TimelineEffectsTrackProps {
@@ -33,7 +41,6 @@ interface TimelineEffectsTrackProps {
   onEffectClick: (effectId: string, e: React.MouseEvent) => void;
   onEffectDelete: (id: string) => void;
   overlappingSegmentIds?: Set<string>;
-  hasSpeakerBox?: boolean;  // Whether global speaker box is set
   // Audio drop zone props
   showDropZone?: boolean;
   dropZoneProps?: {
@@ -62,7 +69,6 @@ const TimelineEffectsTrack: React.FC<TimelineEffectsTrackProps> = ({
   onEffectClick,
   onEffectDelete,
   overlappingSegmentIds = new Set(),
-  hasSpeakerBox = false,
   showDropZone = false,
   dropZoneProps,
 }) => {
@@ -241,14 +247,14 @@ const TimelineEffectsTrack: React.FC<TimelineEffectsTrackProps> = ({
                         }}
                       />
                     )}
-                    {hasSpeakerBox && (
+                    {segment.speakerBox && (
                       <Face
                         sx={{
                           fontSize: 11,
                           color: '#f59e0b',
                           filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))',
                         }}
-                        titleAccess="Speaker box applied"
+                        titleAccess="Speaker box set for this segment"
                       />
                     )}
                     <Typography sx={{

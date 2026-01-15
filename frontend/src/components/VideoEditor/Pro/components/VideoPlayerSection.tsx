@@ -5,7 +5,7 @@
  * - Drawing rectangles (effects)
  * - Existing effects (erasure, protection, text)
  * - Draggable and resizable effect regions
- * - Speaker selection bounding box
+ * - Per-segment speaker selection bounding box
  */
 
 import React from 'react';
@@ -13,7 +13,7 @@ import ReactPlayer from 'react-player';
 import { Rnd } from 'react-rnd';
 import { Box, Typography, Button, IconButton } from '@mui/material';
 import { Close } from '@mui/icons-material';
-import { VideoEffect, useEffectsStore, GlobalSpeakerBox } from '../../../../store/effectsStore';
+import { VideoEffect, useEffectsStore, SpeakerBoxCoords } from '../../../../store/effectsStore';
 import { useSegmentsStore } from '../../../../store/segmentsStore';
 import { VideoHandlers } from '../hooks/useVideoHandlers';
 import { EffectHandlers } from '../hooks/useEffectHandlers';
@@ -48,18 +48,27 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
   deleteEffect,
   setStoreTime,
 }) => {
-  // Get speaker selection state from store
+  // Get per-segment speaker selection state from store
   const {
-    globalSpeakerBox,
-    isSpeakerSelectionMode,
-    setGlobalSpeakerBox,
+    speakerEditingSegmentId,
+    speakerEditingBox,
+    updateSpeakerEditingBox,
     confirmSpeakerSelection,
     cancelSpeakerSelection,
-    clearSpeakerBox,
   } = useEffectsStore();
 
-  // Get segment count for speaker box label
-  const { segments } = useSegmentsStore();
+  // Get segments and update function
+  const { segments, updateSegment } = useSegmentsStore();
+
+  // Find the segment being edited
+  const editingSegment = speakerEditingSegmentId
+    ? segments.find(s => s.id === speakerEditingSegmentId)
+    : null;
+
+  // Find the current segment at playhead time (for displaying confirmed speaker boxes)
+  const currentSegment = segments.find(
+    s => currentTime >= s.startTime && currentTime <= s.endTime
+  );
 
   const formatTime = (seconds: number, includeMs: boolean = false): string => {
     if (includeMs) {
@@ -74,16 +83,16 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
     effectHandlers.handleStopEditing();
   };
 
-  // Handle speaker box drag
+  // Handle speaker box drag (per-segment)
   const handleSpeakerBoxDrag = (d: { x: number; y: number }) => {
-    if (!videoHandlers.videoBounds || !globalSpeakerBox) return;
+    if (!videoHandlers.videoBounds || !speakerEditingBox) return;
 
-    const width = globalSpeakerBox.x2 - globalSpeakerBox.x1;
-    const height = globalSpeakerBox.y2 - globalSpeakerBox.y1;
+    const width = speakerEditingBox.x2 - speakerEditingBox.x1;
+    const height = speakerEditingBox.y2 - speakerEditingBox.y1;
     const newX1 = (d.x - videoHandlers.videoBounds.x) / videoHandlers.videoBounds.width;
     const newY1 = (d.y - videoHandlers.videoBounds.y) / videoHandlers.videoBounds.height;
 
-    setGlobalSpeakerBox({
+    updateSpeakerEditingBox({
       x1: Math.max(0, Math.min(1 - width, newX1)),
       y1: Math.max(0, Math.min(1 - height, newY1)),
       x2: Math.max(0, Math.min(1, newX1 + width)),
@@ -91,7 +100,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
     });
   };
 
-  // Handle speaker box resize
+  // Handle speaker box resize (per-segment)
   const handleSpeakerBoxResize = (
     ref: HTMLElement,
     position: { x: number; y: number }
@@ -103,12 +112,37 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
     const newWidth = parseInt(ref.style.width) / videoHandlers.videoBounds.width;
     const newHeight = parseInt(ref.style.height) / videoHandlers.videoBounds.height;
 
-    setGlobalSpeakerBox({
+    updateSpeakerEditingBox({
       x1: Math.max(0, Math.min(1, newX1)),
       y1: Math.max(0, Math.min(1, newY1)),
       x2: Math.max(0, Math.min(1, newX1 + newWidth)),
       y2: Math.max(0, Math.min(1, newY1 + newHeight)),
     });
+  };
+
+  // Handle confirm - save speaker box to segment
+  const handleConfirmSpeakerSelection = () => {
+    const box = confirmSpeakerSelection();
+    if (box && speakerEditingSegmentId) {
+      // Save the box to the segment
+      updateSegment(speakerEditingSegmentId, {
+        speakerBox: {
+          x1: box.x1,
+          y1: box.y1,
+          x2: box.x2,
+          y2: box.y2,
+          method: 'manual',
+        },
+      });
+    }
+  };
+
+  // Handle clear - remove speaker box from segment
+  const handleClearSpeakerBox = () => {
+    if (speakerEditingSegmentId) {
+      updateSegment(speakerEditingSegmentId, { speakerBox: null });
+    }
+    cancelSpeakerSelection();
   };
 
   return (
@@ -527,16 +561,16 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
           );
         })}
 
-        {/* Speaker Selection Bounding Box Overlay */}
-        {isSpeakerSelectionMode && globalSpeakerBox && videoHandlers.videoBounds && (
+        {/* Speaker Selection Bounding Box Overlay - Per-segment editing */}
+        {speakerEditingSegmentId && speakerEditingBox && videoHandlers.videoBounds && (
           <Rnd
             position={{
-              x: videoHandlers.videoBounds.x + (globalSpeakerBox.x1 * videoHandlers.videoBounds.width),
-              y: videoHandlers.videoBounds.y + (globalSpeakerBox.y1 * videoHandlers.videoBounds.height),
+              x: videoHandlers.videoBounds.x + (speakerEditingBox.x1 * videoHandlers.videoBounds.width),
+              y: videoHandlers.videoBounds.y + (speakerEditingBox.y1 * videoHandlers.videoBounds.height),
             }}
             size={{
-              width: (globalSpeakerBox.x2 - globalSpeakerBox.x1) * videoHandlers.videoBounds.width,
-              height: (globalSpeakerBox.y2 - globalSpeakerBox.y1) * videoHandlers.videoBounds.height,
+              width: (speakerEditingBox.x2 - speakerEditingBox.x1) * videoHandlers.videoBounds.width,
+              height: (speakerEditingBox.y2 - speakerEditingBox.y1) * videoHandlers.videoBounds.height,
             }}
             bounds=".video-bounds-container"
             onDragStop={(e, d) => handleSpeakerBoxDrag(d)}
@@ -578,7 +612,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
               />
             ))}
 
-            {/* Speaker box label and controls */}
+            {/* Speaker box label and controls - shows which segment */}
             <Box sx={{
               position: 'absolute',
               top: -55,
@@ -597,13 +631,13 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
                 fontWeight: 600,
                 whiteSpace: 'nowrap'
               }}>
-                Speaker Face Region {segments.length > 0 ? `(applies to ${segments.length} segment${segments.length > 1 ? 's' : ''})` : ''}
+                Speaker for: {editingSegment?.label || 'Segment'}
               </Typography>
               <Box sx={{ display: 'flex', gap: 1 }}>
                 <Button
                   size="small"
                   variant="contained"
-                  onClick={() => confirmSpeakerSelection(globalSpeakerBox)}
+                  onClick={handleConfirmSpeakerSelection}
                   sx={{
                     fontSize: '11px',
                     minWidth: 'auto',
@@ -637,7 +671,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
                 <Button
                   size="small"
                   variant="outlined"
-                  onClick={clearSpeakerBox}
+                  onClick={handleClearSpeakerBox}
                   sx={{
                     fontSize: '11px',
                     minWidth: 'auto',
@@ -659,15 +693,15 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
           </Rnd>
         )}
 
-        {/* Display confirmed speaker box (when not in selection mode) */}
-        {!isSpeakerSelectionMode && globalSpeakerBox && videoHandlers.videoBounds && (
+        {/* Display confirmed speaker box for current segment (when not in editing mode) */}
+        {!speakerEditingSegmentId && currentSegment?.speakerBox && videoHandlers.videoBounds && (
           <Box
             sx={{
               position: 'absolute',
-              left: `${videoHandlers.videoBounds.x + (globalSpeakerBox.x1 * videoHandlers.videoBounds.width)}px`,
-              top: `${videoHandlers.videoBounds.y + (globalSpeakerBox.y1 * videoHandlers.videoBounds.height)}px`,
-              width: `${(globalSpeakerBox.x2 - globalSpeakerBox.x1) * videoHandlers.videoBounds.width}px`,
-              height: `${(globalSpeakerBox.y2 - globalSpeakerBox.y1) * videoHandlers.videoBounds.height}px`,
+              left: `${videoHandlers.videoBounds.x + (currentSegment.speakerBox.x1 * videoHandlers.videoBounds.width)}px`,
+              top: `${videoHandlers.videoBounds.y + (currentSegment.speakerBox.y1 * videoHandlers.videoBounds.height)}px`,
+              width: `${(currentSegment.speakerBox.x2 - currentSegment.speakerBox.x1) * videoHandlers.videoBounds.width}px`,
+              height: `${(currentSegment.speakerBox.y2 - currentSegment.speakerBox.y1) * videoHandlers.videoBounds.height}px`,
               border: '2px dashed #f59e0b',
               backgroundColor: 'rgba(245, 158, 11, 0.05)',
               pointerEvents: 'none',
@@ -686,7 +720,7 @@ export const VideoPlayerSection: React.FC<VideoPlayerSectionProps> = ({
               borderRadius: '2px',
               whiteSpace: 'nowrap'
             }}>
-              Speaker {segments.length > 0 ? `(${segments.length} segment${segments.length > 1 ? 's' : ''})` : ''}
+              Speaker: {currentSegment.label || 'Segment'}
             </Typography>
           </Box>
         )}

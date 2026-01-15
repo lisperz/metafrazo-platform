@@ -11,8 +11,10 @@ interface TimelineControlsProps {
   canUndo: boolean;
   canRedo: boolean;
   segmentCount: number;
-  hasSpeakerBox?: boolean;
+  currentSegmentHasSpeakerBox?: boolean;  // Whether current segment has speaker box
   isSpeakerSelectionMode?: boolean;
+  canSelectSpeaker?: boolean;  // Whether playhead is on a segment
+  currentSegmentLabel?: string;  // Label of current segment
   onPlayPause: () => void;
   onVolumeToggle: () => void;
   onUndo: () => void;
@@ -33,8 +35,10 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
   canUndo,
   canRedo,
   segmentCount,
-  hasSpeakerBox = false,
+  currentSegmentHasSpeakerBox = false,
   isSpeakerSelectionMode = false,
+  canSelectSpeaker = false,
+  currentSegmentLabel,
   onPlayPause,
   onVolumeToggle,
   onUndo,
@@ -128,11 +132,12 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
           variant="contained"
           size="small"
           onClick={onSelectSpeaker}
+          disabled={!canSelectSpeaker}
           startIcon={<Face />}
           sx={{
             bgcolor: isSpeakerSelectionMode
               ? '#10b981'
-              : hasSpeakerBox
+              : currentSegmentHasSpeakerBox
                 ? '#059669'
                 : '#6366f1',
             color: 'white',
@@ -143,17 +148,23 @@ const TimelineControls: React.FC<TimelineControlsProps> = ({
             '&:hover': {
               bgcolor: isSpeakerSelectionMode
                 ? '#059669'
-                : hasSpeakerBox
+                : currentSegmentHasSpeakerBox
                   ? '#047857'
                   : '#4f46e5',
             },
+            '&:disabled': {
+              background: '#d9d9d9',
+              color: '#999'
+            }
           }}
         >
           {isSpeakerSelectionMode
             ? 'Drawing...'
-            : hasSpeakerBox
-              ? 'Speaker Set ✓'
-              : 'Select Speaker'}
+            : currentSegmentHasSpeakerBox
+              ? `Speaker Set ✓`
+              : canSelectSpeaker
+                ? `Set Speaker${currentSegmentLabel ? ` (${currentSegmentLabel})` : ''}`
+                : 'No Segment'}
         </Button>
       )}
     </>

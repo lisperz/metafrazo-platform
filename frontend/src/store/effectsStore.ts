@@ -20,13 +20,16 @@ export interface VideoMetadata {
   totalFrames: number;
 }
 
-// Global speaker box for all segments (applied to entire video)
-export interface GlobalSpeakerBox {
+// Speaker box coordinates (normalized 0-1) - used for editing
+export interface SpeakerBoxCoords {
   x1: number;  // Top-left X (normalized 0-1)
   y1: number;  // Top-left Y (normalized 0-1)
   x2: number;  // Bottom-right X (normalized 0-1)
   y2: number;  // Bottom-right Y (normalized 0-1)
 }
+
+// Keep GlobalSpeakerBox as alias for backward compatibility
+export type GlobalSpeakerBox = SpeakerBoxCoords;
 
 interface EffectsStore {
   effects: VideoEffect[];
@@ -39,14 +42,14 @@ interface EffectsStore {
   zoomLevel: number;  // Added for timeline zoom synchronization
   videoMetadata: VideoMetadata | null;  // Video dimensions and fps for speaker selection
 
-  // Global speaker selection
-  globalSpeakerBox: GlobalSpeakerBox | null;  // Speaker bounding box for all segments
-  isSpeakerSelectionMode: boolean;  // Whether user is drawing speaker box
-  
+  // Per-segment speaker selection (editing state only)
+  speakerEditingSegmentId: string | null;  // Which segment is being edited for speaker box
+  speakerEditingBox: SpeakerBoxCoords | null;  // Temporary box while editing
+
   // Undo/Redo functionality
   history: VideoEffect[][];
   historyIndex: number;
-  
+
   // Actions
   addEffect: (effect: VideoEffect) => void;
   updateEffect: (id: string, updates: Partial<VideoEffect>) => void;
@@ -61,21 +64,20 @@ interface EffectsStore {
   setVideoMetadata: (metadata: VideoMetadata | null) => void;
   clearEffects: () => void;
 
-  // Speaker selection actions
-  setGlobalSpeakerBox: (box: GlobalSpeakerBox | null) => void;
-  setSpeakerSelectionMode: (isActive: boolean) => void;
-  startSpeakerSelection: () => void;
-  confirmSpeakerSelection: (box: GlobalSpeakerBox) => void;
+  // Speaker selection actions (per-segment)
+  startSpeakerSelectionForSegment: (segmentId: string, existingBox?: SpeakerBoxCoords | null) => void;
+  updateSpeakerEditingBox: (box: SpeakerBoxCoords | null) => void;
+  confirmSpeakerSelection: () => SpeakerBoxCoords | null;  // Returns the box to save
   cancelSpeakerSelection: () => void;
-  clearSpeakerBox: () => void;
-  
+  isSpeakerSelectionMode: () => boolean;
+
   // Undo/Redo actions
   undo: () => void;
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
   saveToHistory: () => void;
-  
+
   // Helper function to format for GhostCut API
   formatForGhostCut: () => any;
 }
@@ -91,14 +93,14 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
   zoomLevel: 1,  // Default zoom level 1 (100%)
   videoMetadata: null,  // Will be set when video loads
 
-  // Global speaker selection state
-  globalSpeakerBox: null,
-  isSpeakerSelectionMode: false,
-  
+  // Per-segment speaker selection state
+  speakerEditingSegmentId: null,
+  speakerEditingBox: null,
+
   // Undo/Redo state
   history: [[]],
   historyIndex: 0,
-  
+
   addEffect: (effect) => set((state) => {
     const newEffects = [...state.effects, effect];
     const newHistory = [...state.history.slice(0, state.historyIndex + 1), newEffects];
@@ -108,7 +110,7 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
       historyIndex: Math.min(newHistory.length - 1, 49)
     };
   }),
-  
+
   updateEffect: (id, updates) => set((state) => {
     const newEffects = state.effects.map(effect =>
       effect.id === id ? { ...effect, ...updates } : effect
@@ -120,7 +122,7 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
       historyIndex: Math.min(newHistory.length - 1, 49)
     };
   }),
-  
+
   deleteEffect: (id) => set((state) => {
     const newEffects = state.effects.filter(effect => effect.id !== id);
     const newHistory = [...state.history.slice(0, state.historyIndex + 1), newEffects];
@@ -131,52 +133,54 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
       historyIndex: Math.min(newHistory.length - 1, 49)
     };
   }),
-  
+
   setSelectedEffect: (id) => set({ selectedEffectId: id }),
-  
+
   setCurrentTime: (time) => set({ currentTime: time }),
-  
+
   setDuration: (duration) => set({ duration }),
-  
+
   setIsPlaying: (playing) => set({ isPlaying: playing }),
-  
+
   setSelectedLabel: (label) => set({ selectedLabel: label }),
-  
+
   setVideoUrl: (url) => set({ videoUrl: url }),
-  
+
   setZoomLevel: (zoom) => set({ zoomLevel: zoom }),
 
   setVideoMetadata: (metadata) => set({ videoMetadata: metadata }),
 
   clearEffects: () => set({ effects: [], selectedEffectId: null, history: [[]], historyIndex: 0 }),
 
-  // Speaker selection implementations
-  setGlobalSpeakerBox: (box) => set({ globalSpeakerBox: box }),
-
-  setSpeakerSelectionMode: (isActive) => set({ isSpeakerSelectionMode: isActive }),
-
-  startSpeakerSelection: () => set({
-    isSpeakerSelectionMode: true,
-    // Set default box in center if none exists
-    globalSpeakerBox: { x1: 0.3, y1: 0.2, x2: 0.7, y2: 0.8 }
+  // Per-segment speaker selection implementations
+  startSpeakerSelectionForSegment: (segmentId, existingBox) => set({
+    speakerEditingSegmentId: segmentId,
+    // Use existing box or default to center
+    speakerEditingBox: existingBox || { x1: 0.3, y1: 0.2, x2: 0.7, y2: 0.8 }
   }),
 
-  confirmSpeakerSelection: (box) => set({
-    globalSpeakerBox: box,
-    isSpeakerSelectionMode: false
+  updateSpeakerEditingBox: (box) => set({ speakerEditingBox: box }),
+
+  confirmSpeakerSelection: () => {
+    const state = get();
+    const box = state.speakerEditingBox;
+    // Clear editing state
+    set({
+      speakerEditingSegmentId: null,
+      speakerEditingBox: null
+    });
+    return box;  // Return the box so caller can save it to segment
+  },
+
+  cancelSpeakerSelection: () => set({
+    speakerEditingSegmentId: null,
+    speakerEditingBox: null
   }),
 
-  cancelSpeakerSelection: () => set((state) => ({
-    isSpeakerSelectionMode: false,
-    // Keep existing box if there was one, otherwise clear
-    globalSpeakerBox: state.globalSpeakerBox
-  })),
+  isSpeakerSelectionMode: () => {
+    return get().speakerEditingSegmentId !== null;
+  },
 
-  clearSpeakerBox: () => set({
-    globalSpeakerBox: null,
-    isSpeakerSelectionMode: false
-  }),
-  
   // Undo/Redo implementations
   undo: () => set((state) => {
     if (state.historyIndex > 0) {
