@@ -1,35 +1,39 @@
 # Next Session Context - MetaFrazo Platform
 
-**Last Updated**: January 12, 2026
-**Current Status**: Speaker-Selection Feature Ready for Implementation
+**Last Updated**: January 14, 2026
+**Current Status**: Per-Segment Speaker Selection Feature Completed
 
 ---
 
-## Current Priority: Speaker-Selection Feature (5-Day Implementation)
+## Recently Completed: Per-Segment Speaker Selection
 
-### Feature Overview
+### Feature Summary
 
-Enable per-segment speaker selection in Pro Video Editor using Sync.so bounding boxes API.
+Implemented per-segment speaker selection in Pro Video Editor. Each segment can have its own speaker bounding box for multi-person videos.
 
-**Key Approach**: Fixed bounding box per segment → Single API call with `bounding_boxes` array
+### Implementation Details
 
+**How it works**:
+1. User positions playhead on a segment in the timeline
+2. Clicks "Set Speaker (Segment Name)" button in toolbar
+3. Drags/resizes the orange bounding box on the video to frame the speaker's face
+4. Clicks "Confirm" to save the speaker box to that specific segment
+5. Face icon appears on the segment bar in timeline to indicate speaker is set
+6. When playhead is on a segment with speaker box, a dashed outline shows the configured area
+
+**Key Files Modified**:
+- `frontend/src/store/effectsStore.ts` - Per-segment editing state (`speakerEditingSegmentId`, `speakerEditingBox`)
+- `frontend/src/components/VideoEditor/Pro/components/TimelineControls.tsx` - "Set Speaker" button with segment context
+- `frontend/src/components/VideoEditor/Pro/components/TimelineSection.tsx` - Handles speaker selection for current segment
+- `frontend/src/components/VideoEditor/Pro/components/VideoPlayerSection.tsx` - Speaker box overlay per-segment
+- `frontend/src/components/VideoEditor/Pro/components/TimelineEffectsTrack.tsx` - Face icon per-segment
+- `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` - Sends per-segment speakerBox to API
+
+**Data Flow**:
 ```
-Segment 1 frames → [x1,y1,x2,y2] (Speaker A's face)
-Gap frames       → null (no lip-sync)
-Segment 2 frames → [x1,y1,x2,y2] (Speaker B's face)
+User draws box → effectsStore (editing state) → Confirm → segmentsStore (segment.speakerBox)
+→ Submit → useVideoSubmission → API payload with per-segment speakerBox
 ```
-
-### Implementation Plan (5 Days)
-
-| Day | Focus | Key Files |
-|-----|-------|-----------|
-| **Day 1** | Speaker Box Drawing Component | `SpeakerBoxDrawer.tsx`, `speakerStore.ts` |
-| **Day 2** | Segment Form Integration | `SegmentForm.tsx`, `types/segments.ts` |
-| **Day 3** | Backend Bounding Boxes Builder | `sync_segments_service.py`, `video_utils.py` |
-| **Day 4** | Frontend-Backend Integration | `useVideoSubmission.ts`, `processing.py` |
-| **Day 5** | Testing & Polish | All scenarios + edge cases |
-
-**Full Details**: See `discuss/speaker-selection-task-breakdown.md`
 
 ---
 
@@ -61,70 +65,21 @@ Segment 2 frames → [x1,y1,x2,y2] (Speaker B's face)
 Phraze.so (Client) → JWT Token → MetaFrazo Editor → Process Video → Callback → Phraze.so
 ```
 
-1. User clicks "Edit Video" in Phraze.so
-2. Phraze generates JWT token with job_id, video_url, callback_url
-3. MetaFrazo validates token, loads video in Pro Editor
-4. User edits (segments, audio, speaker selection)
-5. MetaFrazo processes via Sync.so API
-6. MetaFrazo sends callback to Phraze with result URL
-
----
-
-## Environment Configuration
-
-### Phraze.so Environments
-
-**Dev** (`dev.phraze.so`, `localhost`, ngrok):
-- User: `03139de3-8cc6-4702-a2fd-048dff642ccb`
-- Database: `phraze-dev-instance-1.ccdrwsnbgg82.us-east-2.rds.amazonaws.com`
-- Password: `etSipaV_Vwvo>FhC1z[Zs-].~x.f`
-
-**Staging** (`staging.phraze.so`):
-- User: `3793b467-c3c0-4982-8d23-1b2a21aafb18`
-
-**Production** (`phraze.so`):
-- User: `3793b467-c3c0-4982-8d23-1b2a21aafb18`
-
-### Database Passwords (Updated Jan 2026)
-
-**Phraze Dev DB**:
-```
-AWS_DB_HOST=phraze-dev-instance-1.ccdrwsnbgg82.us-east-2.rds.amazonaws.com
-AWS_DB_PASSWORD="etSipaV_Vwvo>FhC1z[Zs-].~x.f"
-```
-
-**MetaFrazo DB** (if needed):
-```
-Check .env file in metafrazo-platform root
-```
-
 ---
 
 ## Key Technical Details
 
-### Pro Video Editor Architecture
+### Pro Video Editor State Management
 
-**State Management**:
-- `segmentsStore.ts`: Video segments with audio
-- `effectsStore.ts`: Erasure/protection areas (GhostCut)
-- `speakerStore.ts`: Speaker selection (NEW - to be created)
-
-**Bounding Box System**:
-- Uses `react-rnd` for drag/resize
-- Normalized coordinates (0-1) relative to video dimensions
-- Conversion: `pixelPosition = videoBounds.offset + (normalized * videoBounds.size)`
-
-**Submission Flow**:
-```
-useVideoSubmission → embeddedApi.submitJob() → backend/api/routes/embedded/processing.py
-→ sync_segments_service.py → Sync.so API
-```
+- `segmentsStore.ts`: Video segments with audio and speakerBox
+- `effectsStore.ts`: Erasure/protection areas + speaker editing state
+- Segments have optional `speakerBox: { x1, y1, x2, y2, method }` (normalized 0-1 coordinates)
 
 ### Sync.so API Integration
 
 **Endpoint**: `POST https://api.sync.so/v2/generate`
 
-**Payload Structure**:
+**Payload with Speaker Boxes**:
 ```json
 {
   "model": "lipsync-2",
@@ -133,61 +88,23 @@ useVideoSubmission → embeddedApi.submitJob() → backend/api/routes/embedded/p
     { "type": "audio", "url": "...", "refId": "audio1" }
   ],
   "segments": [
-    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1" } }
-  ],
-  "options": {
-    "active_speaker_detection": {
-      "bounding_boxes": [[x1,y1,x2,y2], null, ...]  // Per-frame array
+    {
+      "startTime": 2.58,
+      "endTime": 10.22,
+      "audioInput": { "refId": "audio1" },
+      "speakerBox": { "x1": 0.2, "y1": 0.1, "x2": 0.8, "y2": 0.9, "method": "manual" }
     }
-  }
+  ]
 }
 ```
 
-**Key Constraint**: `active_speaker_detection` is GLOBAL (not per-segment), but we use `bounding_boxes` array to achieve per-segment control.
-
 ---
 
-## Important Notes
+## Development Guidelines
 
-### Development Guidelines
-
-- **No Claude co-author**: Git commits should only have your name
 - **File limits**: Max 300 lines per file (JS/TS/Python), 400 lines (Java/Go/Rust)
 - **Folder limits**: Max 8 files per folder
 - **Run scripts**: Always use `.sh` scripts in `scripts/` directory
-- **Code architecture**: Avoid rigidity, redundancy, circular dependencies, fragility, obscurity
-
-### Known Issues
-
-- **AudioInput interface**: Properties `file`, `fileName`, `fileSize` are optional - use `?? null` or `?? 0`
-- **Re-edit feature**: Removed (Dec 2025), but database still stores data for auditing
-- **Cross-env testing**: Waiting for Phraze developer to update AWS env vars
-
-### Testing Checklist
-
-When implementing speaker-selection:
-- [ ] Single segment with speaker box
-- [ ] Multiple segments, same speaker
-- [ ] Multiple segments, different speakers
-- [ ] Segment without speaker box (auto-detect fallback)
-- [ ] Various video resolutions (coordinate accuracy)
-- [ ] Long videos (bounding_boxes array size)
-
----
-
-## Quick Reference
-
-### Key Files for Speaker-Selection
-
-**Frontend**:
-- `frontend/src/components/VideoEditor/Pro/components/SpeakerBoxDrawer.tsx` (NEW)
-- `frontend/src/components/VideoEditor/Pro/components/SegmentForm.tsx` (MODIFY)
-- `frontend/src/store/speakerStore.ts` (NEW)
-- `frontend/src/types/segments.ts` (MODIFY - add `speakerBox` field)
-
-**Backend**:
-- `backend/services/sync_segments_service.py` (MODIFY - add `build_bounding_boxes()`)
-- `backend/api/routes/embedded/processing.py` (MODIFY - accept speaker data)
 
 ### Useful Commands
 
@@ -208,7 +125,6 @@ npm run dev
 
 ## Documentation
 
-- **Speaker-Selection Plan**: `discuss/speaker-selection-task-breakdown.md`
 - **Phraze Integration**: `docs/PHRAZE_INTEGRATION_GUIDE.md`
 - **API Specification**: `docs/API_SPECIFICATION.md`
 - **Development Guidelines**: `DEVELOPMENT_GUIDELINES.md`
