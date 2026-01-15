@@ -1,39 +1,86 @@
 # Next Session Context - MetaFrazo Platform
 
-**Last Updated**: January 14, 2026
-**Current Status**: Per-Segment Speaker Selection Feature Completed
+**Last Updated**: January 15, 2026
+**Current Status**: Investigating Speaker Detection Quality Issue
 
 ---
 
-## Recently Completed: Per-Segment Speaker Selection
+## Current Issue: Speaker Detection Not Working Well
 
-### Feature Summary
+### Problem Summary
 
-Implemented per-segment speaker selection in Pro Video Editor. Each segment can have its own speaker bounding box for multi-person videos.
+User submitted a job with speaker detection (bounding box) for one segment, but the speaker detection effects in the output video are not good.
 
-### Implementation Details
+### Investigation Findings
 
-**How it works**:
-1. User positions playhead on a segment in the timeline
-2. Clicks "Set Speaker (Segment Name)" button in toolbar
-3. Drags/resizes the orange bounding box on the video to frame the speaker's face
-4. Clicks "Confirm" to save the speaker box to that specific segment
-5. Face icon appears on the segment bar in timeline to indicate speaker is set
-6. When playhead is on a segment with speaker box, a dashed outline shows the configured area
-
-**Key Files Modified**:
-- `frontend/src/store/effectsStore.ts` - Per-segment editing state (`speakerEditingSegmentId`, `speakerEditingBox`)
-- `frontend/src/components/VideoEditor/Pro/components/TimelineControls.tsx` - "Set Speaker" button with segment context
-- `frontend/src/components/VideoEditor/Pro/components/TimelineSection.tsx` - Handles speaker selection for current segment
-- `frontend/src/components/VideoEditor/Pro/components/VideoPlayerSection.tsx` - Speaker box overlay per-segment
-- `frontend/src/components/VideoEditor/Pro/components/TimelineEffectsTrack.tsx` - Face icon per-segment
-- `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` - Sends per-segment speakerBox to API
-
-**Data Flow**:
+**The bounding boxes ARE being built correctly:**
 ```
-User draws box → effectsStore (editing state) → Confirm → segmentsStore (segment.speakerBox)
-→ Submit → useVideoSubmission → API payload with per-segment speakerBox
+Segment 14.522333-21.669604: frames 435-650, box=[863, 206, 1453, 610]
+Built bounding_boxes array: 1803 frames, 216 with speaker box, 1587 auto-detect
+Added bounding_boxes to options (1803 frames)
 ```
+
+**Video metadata:**
+- Resolution: 1920x1080
+- FPS: 30
+- Total frames: 1803
+
+**Speaker box coordinates (pixel values):**
+- x1=863, y1=206 (top-left)
+- x2=1453, y2=610 (bottom-right)
+- This covers roughly x: 45%-76% and y: 19%-56% of the frame
+
+**Normalized coordinates from frontend:**
+```json
+{
+  "x1": 0.44952532611315765,
+  "y1": 0.19156122006444487,
+  "x2": 0.7568829210498665,
+  "y2": 0.5649789415834322,
+  "method": "manual"
+}
+```
+
+### Key Log Evidence
+
+The implementation is working correctly:
+1. Frontend sends `speakerBox` with normalized coordinates
+2. Backend receives and logs: `Segments contain speaker boxes - will build bounding_boxes array`
+3. `build_bounding_boxes()` correctly builds the array:
+   - Frames 0-434: `null` (before segment)
+   - Frames 435-650: `[863, 206, 1453, 610]` (speaker box)
+   - Frames 651-1802: `null` (after segment)
+4. Sync.so API payload includes `options.active_speaker_detection.bounding_boxes`
+
+### Diagnose Further - Questions to Ask User
+
+1. **What specific issue in the output video?**
+   - Wrong person being lip-synced?
+   - Lip-sync not happening at all?
+   - Lip-sync quality is poor/glitchy?
+
+2. **Is there more than one person visible during segment (14.5s - 21.7s)?**
+
+3. **Does the speaker move significantly during this segment?**
+
+4. **Can user share a screenshot of the bounding box they drew?**
+   - Verify box is correctly positioned on speaker's face
+
+### Possible Root Causes
+
+1. **Bounding box not accurate enough** - Box needs to tightly frame the speaker's face
+2. **Speaker moves outside fixed box** - Fixed box for all frames, but speaker may move
+3. **Sync.so interpretation** - `bounding_boxes` tells Sync.so where to look, but it still needs to detect/track the face within that region
+
+### Key Files for Speaker Detection
+
+**Backend:**
+- `backend/services/sync_segments_service.py` - `build_bounding_boxes()` function (lines 14-97)
+- `backend/services/embedded_processing.py` - Creates Sync.so generation with video_metadata
+
+**Frontend:**
+- `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` - Sends speakerBox to API
+- `frontend/src/store/segmentsStore.ts` - Stores segment.speakerBox
 
 ---
 
@@ -44,69 +91,22 @@ User draws box → effectsStore (editing state) → Confirm → segmentsStore (s
 **Tech Stack**: FastAPI + React + Celery + PostgreSQL + AWS S3
 **Location**: `/Users/zhuchen/Downloads/metafrazo-platform`
 
-**Key Components**:
-- **Frontend**: React 19, Material-UI, Zustand stores
-- **Backend**: FastAPI, Celery workers, Sync.so API integration
-- **Pro Editor**: Multi-segment lip-sync with timeline (`frontend/src/components/VideoEditor/Pro/`)
-
 ### Phraze.so Platform (Client Portal)
 
 **Tech Stack**: Next.js 15 + React 19 + MySQL + Supabase Auth
 **Location**: `/Users/zhuchen/Downloads/cadence`
 
-**Key Components**:
-- **Editor Jobs**: Embedded video editor integration
-- **Feature Flags**: Per-environment user access control (`src/constants/featureFlags.ts`)
-- **Domains**: `phraze.so` (prod), `staging.phraze.so`, `dev.phraze.so` (local/ngrok)
+**Domains**: `phraze.so` (prod), `staging.phraze.so`, `dev.phraze.so`
 
 ### Integration Flow
 
 ```
-Phraze.so (Client) → JWT Token → MetaFrazo Editor → Process Video → Callback → Phraze.so
+Phraze.so → JWT Token → MetaFrazo Editor → Sync.so API → Callback → Phraze.so
 ```
 
 ---
 
-## Key Technical Details
-
-### Pro Video Editor State Management
-
-- `segmentsStore.ts`: Video segments with audio and speakerBox
-- `effectsStore.ts`: Erasure/protection areas + speaker editing state
-- Segments have optional `speakerBox: { x1, y1, x2, y2, method }` (normalized 0-1 coordinates)
-
-### Sync.so API Integration
-
-**Endpoint**: `POST https://api.sync.so/v2/generate`
-
-**Payload with Speaker Boxes**:
-```json
-{
-  "model": "lipsync-2",
-  "input": [
-    { "type": "video", "url": "..." },
-    { "type": "audio", "url": "...", "refId": "audio1" }
-  ],
-  "segments": [
-    {
-      "startTime": 2.58,
-      "endTime": 10.22,
-      "audioInput": { "refId": "audio1" },
-      "speakerBox": { "x1": 0.2, "y1": 0.1, "x2": 0.8, "y2": 0.9, "method": "manual" }
-    }
-  ]
-}
-```
-
----
-
-## Development Guidelines
-
-- **File limits**: Max 300 lines per file (JS/TS/Python), 400 lines (Java/Go/Rust)
-- **Folder limits**: Max 8 files per folder
-- **Run scripts**: Always use `.sh` scripts in `scripts/` directory
-
-### Useful Commands
+## Useful Commands
 
 ```bash
 # Start MetaFrazo backend
@@ -120,11 +120,3 @@ cd /Users/zhuchen/Downloads/metafrazo-platform
 cd /Users/zhuchen/Downloads/cadence
 npm run dev
 ```
-
----
-
-## Documentation
-
-- **Phraze Integration**: `docs/PHRAZE_INTEGRATION_GUIDE.md`
-- **API Specification**: `docs/API_SPECIFICATION.md`
-- **Development Guidelines**: `DEVELOPMENT_GUIDELINES.md`
