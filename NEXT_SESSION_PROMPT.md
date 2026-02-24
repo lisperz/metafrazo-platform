@@ -1,86 +1,82 @@
 # Next Session Context - MetaFrazo Platform
 
-**Last Updated**: January 15, 2026
-**Current Status**: Investigating Speaker Detection Quality Issue
+**Last Updated**: February 23, 2026
+**Current Status**: Codebase cleanup completed; speaker detection quality issue still open
 
 ---
 
-## Current Issue: Speaker Detection Not Working Well
+## Latest Session: Codebase Cleanup (February 23, 2026)
+
+### What Was Done
+
+Major cleanup of redundant files from the local repo. The remote at `https://github.com/lisperz/metafrazo-platform` (branch: `main`) is the source of truth.
+
+### Files Removed
+
+1. **"(1)" duplicate files** (32 files + hundreds in node_modules/.venv) — old copies from file duplication, originals all intact
+2. **`.backup` files** (8) — `ghostcut_client.py.backup`, `s3_service.py.backup`, `video_tasks.py.backup`, `ghostcut_tasks.py.backup`, `JobsPage.tsx.backup`, `UploadPage.tsx.backup`, `GhostCutVideoEditor.tsx.backup`, `ProVideoEditor.tsx.backup`
+3. **`_backup_original/` directory + `*_original.py` files** (23) — pre-refactor snapshots already in git history
+4. **Root-level standalone Python scripts** (11) — `video_processing.py`, `batch_automatic_inpaint.py`, `check_jobs.py`, `ghostcut_api.py`, `dev_server.py`, `start_dev.py`, `zhaoli_processor.py`, `create_client_user.py`, `decode_payload.py`, `test_bounding_box_params.py`, `test_your_payload.py`
+5. **Orphaned frontend pages** (16 in `pages/` + 5 in `src/`) — standalone page files not imported by `App.tsx` (which imports from subdirectories like `./pages/dashboard/`, `./pages/video/`, etc.)
+6. **Root-level docs** (8) — `EXECUTIVE_PRESENTATION.md`, `NGROK_QUICK_START.md`, `PRODUCTION_DEPLOYMENT_GUIDE.md`, `TECHNICAL_CODE_DOCUMENTATION.md`, `USAGE_GUIDE.md`, `VIDEO_EDITOR_IMPLEMENTATION_PLAN.md`, `DEVELOPMENT_GUIDELINES.md`, `CLAUDE.md` (project instructions remain in `.claude/CLAUDE.md`)
+7. **Old untracked backend files** (5) — `backend/services/ghostcut_client.py` (replaced by `ghostcut/client.py`), `backend/services/s3_service.py` (replaced by `s3/service.py`), `backend/api/routes/__init__.py`, `backend/api/routes/jobs.py`, `backend/api/routes/test_login_debug.py`
+8. **Misc** — `requirements.txt`, `requirements_clean.txt`, `test_status.html`, `video_inpainting_demo.html`, `zhaoli_config.json`, `.ebextensions/`, `.platform/`, `TestForMyself_Before/` (with ~40 test videos), old build artifacts in `frontend/build/static/js/`
+9. **Security** — `harshilsuvarna_accessKeys.csv` (contained plaintext AWS key `AKIAQSJTZYWNZBAKB7NB` — **key rotation in AWS IAM is required**)
+
+### Current Root Directory (Clean)
+
+```
+metafrazo-platform/
+├── backend/          # FastAPI application
+├── database/         # PostgreSQL schema
+├── discuss/          # Discussion documents
+├── docs/             # Official documentation
+├── examples/         # Example files
+├── fonts/            # Font assets
+├── frontend/         # React 19 + TypeScript
+├── keys/             # Key files
+├── logs/             # Application logs
+├── scripts/          # Run & debug scripts
+├── static/           # Static file storage
+├── docker-compose.yml
+├── Dockerfile.backend / .beat / .frontend / .worker
+├── deploy_to_railway.sh
+├── nginx.conf / nginx.railway.conf
+├── railway.*.toml
+├── LICENSE (Apache 2.0)
+├── README.md
+├── NEXT_SESSION_PROMPT.md
+├── RAILWAY_CHECKLIST.md
+└── RAILWAY_QUICK_START.md
+```
+
+---
+
+## Open Issue: Speaker Detection Quality
 
 ### Problem Summary
 
-User submitted a job with speaker detection (bounding box) for one segment, but the speaker detection effects in the output video are not good.
+Speaker detection (bounding box) implementation is functionally correct end-to-end, but the output video quality from Sync.so is not satisfactory.
 
-### Investigation Findings
+### What Works
 
-**The bounding boxes ARE being built correctly:**
-```
-Segment 14.522333-21.669604: frames 435-650, box=[863, 206, 1453, 610]
-Built bounding_boxes array: 1803 frames, 216 with speaker box, 1587 auto-detect
-Added bounding_boxes to options (1803 frames)
-```
+- Frontend sends `speakerBox` with normalized coordinates per segment
+- Backend `build_bounding_boxes()` correctly converts to per-frame pixel arrays
+- Sync.so API payload includes `options.active_speaker_detection.bounding_boxes`
 
-**Video metadata:**
-- Resolution: 1920x1080
-- FPS: 30
-- Total frames: 1803
+### Still Needs Investigation
 
-**Speaker box coordinates (pixel values):**
-- x1=863, y1=206 (top-left)
-- x2=1453, y2=610 (bottom-right)
-- This covers roughly x: 45%-76% and y: 19%-56% of the frame
+1. What specific issue in the output? (wrong person, no lip-sync, poor quality?)
+2. Is the bounding box tight enough around the speaker's face?
+3. Does the speaker move outside the fixed box during the segment?
+4. How does Sync.so interpret the bounding_boxes parameter?
 
-**Normalized coordinates from frontend:**
-```json
-{
-  "x1": 0.44952532611315765,
-  "y1": 0.19156122006444487,
-  "x2": 0.7568829210498665,
-  "y2": 0.5649789415834322,
-  "method": "manual"
-}
-```
+### Key Files
 
-### Key Log Evidence
-
-The implementation is working correctly:
-1. Frontend sends `speakerBox` with normalized coordinates
-2. Backend receives and logs: `Segments contain speaker boxes - will build bounding_boxes array`
-3. `build_bounding_boxes()` correctly builds the array:
-   - Frames 0-434: `null` (before segment)
-   - Frames 435-650: `[863, 206, 1453, 610]` (speaker box)
-   - Frames 651-1802: `null` (after segment)
-4. Sync.so API payload includes `options.active_speaker_detection.bounding_boxes`
-
-### Diagnose Further - Questions to Ask User
-
-1. **What specific issue in the output video?**
-   - Wrong person being lip-synced?
-   - Lip-sync not happening at all?
-   - Lip-sync quality is poor/glitchy?
-
-2. **Is there more than one person visible during segment (14.5s - 21.7s)?**
-
-3. **Does the speaker move significantly during this segment?**
-
-4. **Can user share a screenshot of the bounding box they drew?**
-   - Verify box is correctly positioned on speaker's face
-
-### Possible Root Causes
-
-1. **Bounding box not accurate enough** - Box needs to tightly frame the speaker's face
-2. **Speaker moves outside fixed box** - Fixed box for all frames, but speaker may move
-3. **Sync.so interpretation** - `bounding_boxes` tells Sync.so where to look, but it still needs to detect/track the face within that region
-
-### Key Files for Speaker Detection
-
-**Backend:**
-- `backend/services/sync_segments_service.py` - `build_bounding_boxes()` function (lines 14-97)
-- `backend/services/embedded_processing.py` - Creates Sync.so generation with video_metadata
-
-**Frontend:**
-- `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` - Sends speakerBox to API
-- `frontend/src/store/segmentsStore.ts` - Stores segment.speakerBox
+- `backend/services/sync_segments_service.py` — `build_bounding_boxes()` function
+- `backend/services/embedded_processing.py` — Sync.so generation with video_metadata
+- `frontend/src/components/VideoEditor/Pro/hooks/useVideoSubmission.ts` — sends speakerBox to API
+- `frontend/src/store/segmentsStore.ts` — stores segment.speakerBox
 
 ---
 
@@ -88,14 +84,15 @@ The implementation is working correctly:
 
 ### MetaFrazo Platform (Video Editor)
 
-**Tech Stack**: FastAPI + React + Celery + PostgreSQL + AWS S3
+**Tech Stack**: FastAPI + React 19 + Celery + PostgreSQL + Redis + AWS S3
+**Repo**: `https://github.com/lisperz/metafrazo-platform`
 **Location**: `/Users/zhuchen/Downloads/metafrazo-platform`
+**Production**: `https://frontend-production-b02b.up.railway.app`
 
 ### Phraze.so Platform (Client Portal)
 
 **Tech Stack**: Next.js 15 + React 19 + MySQL + Supabase Auth
 **Location**: `/Users/zhuchen/Downloads/cadence`
-
 **Domains**: `phraze.so` (prod), `staging.phraze.so`, `dev.phraze.so`
 
 ### Integration Flow
@@ -103,6 +100,12 @@ The implementation is working correctly:
 ```
 Phraze.so → JWT Token → MetaFrazo Editor → Sync.so API → Callback → Phraze.so
 ```
+
+### External APIs
+
+- **Sync.so** — Lip-sync dubbing (segment-based, per-frame bounding boxes)
+- **GhostCut/Zhaoli** — Text/watermark removal (MD5 signature auth)
+- **AWS S3** — Video/audio file storage
 
 ---
 
@@ -116,7 +119,18 @@ cd /Users/zhuchen/Downloads/metafrazo-platform
 # Start MetaFrazo frontend
 ./scripts/start-frontend.sh
 
+# Start Celery worker
+./scripts/start-worker.sh
+
 # Start Phraze.so (Cadence)
 cd /Users/zhuchen/Downloads/cadence
 npm run dev
 ```
+
+---
+
+## Action Items
+
+- [ ] Rotate AWS access key `AKIAQSJTZYWNZBAKB7NB` in IAM console
+- [ ] Investigate speaker detection output quality with Sync.so
+- [ ] Consider refactoring `backend/workers/video_tasks/pro_jobs.py` (~700 lines, exceeds 300-line limit)

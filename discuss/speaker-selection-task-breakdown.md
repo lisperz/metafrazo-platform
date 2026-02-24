@@ -42,8 +42,8 @@ Bounding Boxes Array:
     { "type": "audio", "url": "https://...", "refId": "audio2" }
   ],
   "segments": [
-    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1", "startTime": 2.58, "endTime": 10.22 } },
-    { "startTime": 15.75, "endTime": 24.64, "audioInput": { "refId": "audio2", "startTime": 15.75, "endTime": 24.64 } }
+    { "startTime": 2.58, "endTime": 10.22, "audioInput": { "refId": "audio1", "startTime": 0, "endTime": 7.64 } },
+    { "startTime": 15.75, "endTime": 24.64, "audioInput": { "refId": "audio2", "startTime": 0, "endTime": 8.89 } }
   ],
   "options": {
     "active_speaker_detection": {
